@@ -70,7 +70,6 @@ const char *clc_zoom_txt[] = {
 int clc_zoom = 4, clc_bpp = 16, clc_fullscreen = 0;
 char clc_dump_sound[PMTMPV] = {0};
 const TCommandLineCustom CustomArgs[] = {
-	{ "-nodumpsound", (int *)&clc_dump_sound, COMMANDLINE_STRSET, (int)"" },
 	{ "-dumpsound", (int *)&clc_dump_sound, COMMANDLINE_STR, PMTMPV-1 },
 	{ "-zoom", &clc_zoom, COMMANDLINE_INT, 1, 6 },
 	{ "-bpp", &clc_bpp, COMMANDLINE_INT, 16, 32 },
