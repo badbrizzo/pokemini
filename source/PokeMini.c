@@ -840,7 +840,7 @@ static int PokeMini_iLoadROMZip(const char *zipfile, int *colorloaded)
 				return 0;
 			}
 			PokeMini_FreeColorInfo();	// Free existing color information
-			PokeMini_SetMINMem(new_data, file_inf.uncompressed_size);
+			PokeMini_SetMINMem((uint8_t *)new_data, file_inf.uncompressed_size);
 			PM_ROM_Alloc = 1;
 			if (unzCloseCurrentFile(uf) != UNZ_OK) {
 				if (PokeMini_OnUnzipError) PokeMini_OnUnzipError(zipfile, "Closing file error");

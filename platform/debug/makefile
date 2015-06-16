@@ -1,20 +1,15 @@
-# PokeMini Makefile for GTK + SDL
+# PokeMini Makefile for GTK + SDL 1.2 (Linux)
 
-CC = gcc
-LD = gcc
-STRIP = strip
 POKEROOT = ../../
 BUILD = Build
 TARGET = PokeMiniD
-
-RELEASE_DIR = ../../release
 
 WINTARGET = PokeMiniD.exe
 WINRES_TRG = $(BUILD)/pokemini_rc.o
 WINRES_SRC = $(POKEROOT)resource/pokemini.rc
 
-CFLAGS = -O -Wall `$(SDL_BASE)sdl-config --cflags` `pkg-config --cflags gtk+-2.0` $(INCLUDE)
-SLFLAGS = -O `$(SDL_BASE)sdl-config --libs` `pkg-config --libs gtk+-2.0` -lm -lz
+CFLAGS += -Wall `$(SDL_BASE)sdl-config --cflags` `pkg-config --cflags gtk+-2.0` $(INCLUDE)
+SLFLAGS += `$(SDL_BASE)sdl-config --libs` `pkg-config --libs gtk+-2.0` -lm -lz
 
 INCDIRS = source sourcex resource freebios dependencies/minizip
 
@@ -151,17 +146,10 @@ $(BUILD)/%.o: %.c $(DEPENDSHDR) $(DEPENDS_LOCAL)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(TARGET): $(BUILDOBJS)
-	$(LD) -o $(TARGET) $(BUILDOBJS) $(SLFLAGS)
-	$(STRIP) $(TARGET)
-	if [ -d $(RELEASE_DIR) ]; then cp $(TARGET) $(RELEASE_DIR); fi
+	$(CC) -o $(TARGET) $(BUILDOBJS) $(SLFLAGS)
 
-win: $(BUILD) $(WINTARGET)
-
-$(WINTARGET): $(BUILDOBJS) $(WINRES_SRC)
-	windres $(INCLUDE) $(WINRES_SRC) $(WINRES_TRG) -DDEBUGGER
-	$(LD) -o $(WINTARGET) $(BUILDOBJS) $(WINRES_TRG) $(SLFLAGS)
-	$(STRIP) $(WINTARGET)
-	if [ -d $(RELEASE_DIR) ]; then cp $(TARGET) $(RELEASE_DIR); fi
+win:
+	make -f makefile.win
 
 clean:
 	-rm -f $(BUILDOBJS) $(TARGET) $(WINTARGET) $(WINRES_TRG)

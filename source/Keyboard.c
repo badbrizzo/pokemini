@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2014  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ static int TMP_keyb_b[10];
 static int KeyLastKey = -1;
 
 // Keyboard character names
-char *KeyboardMapStr[PMKEYB_EOL] = {
+const char *KeyboardMapStr[PMKEYB_EOL] = {
 	"NONE", "ESCAPE", "RETURN",
 	"BACKSPACE", "TAB", "BACKQUOTE",
 
@@ -79,7 +79,7 @@ char *KeyboardMapStr[PMKEYB_EOL] = {
 	"KP_5", "KP_6", "KP_7", "KP_8", "KP_9"
 };
 
-static char *GetKeyboardMapStr(int index)
+static const char *GetKeyboardMapStr(int index)
 {
 	if ((index < 0) || (index >= PMKEYB_EOL)) index = 0;
 	return KeyboardMapStr[index];

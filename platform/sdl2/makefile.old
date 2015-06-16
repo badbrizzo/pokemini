@@ -1,5 +1,8 @@
-# PokeMini Makefile for SDL 1.2 (Linux)
+# PokeMini Makefile for SDL 2
 
+CC = gcc
+LD = gcc
+STRIP = strip
 POKEROOT = ../../
 BUILD = Build
 TARGET = PokeMini
@@ -8,14 +11,14 @@ WINTARGET = PokeMini.exe
 WINRES_TRG = $(BUILD)/pokemini_rc.o
 WINRES_SRC = $(POKEROOT)resource/pokemini.rc
 
-CFLAGS += -Wall `$(SDL_BASE)sdl-config --cflags` $(INCLUDE)
-SLFLAGS += `$(SDL_BASE)sdl-config --libs` -lm -lz
+CFLAGS = -O -Wall `$(SDL_BASE)sdl2-config --cflags` $(INCLUDE)
+SLFLAGS = -O `$(SDL_BASE)sdl2-config --libs` -lm -lz
 
 INCDIRS = source sourcex resource freebios dependencies/minizip
 
 OBJS = \
- PokeMini_SDL.o	\
- sourcex/KeybMapSDL.o	\
+ PokeMini_SDL2.o	\
+ sourcex/KeybMapSDL2.o	\
  sourcex/ExportBMP.o	\
  sourcex/ExportWAV.o	\
  freebios/freebios.o	\
@@ -58,7 +61,7 @@ OBJS = \
  resource/PokeMini_BG6.o
 
 DEPENDS = \
- sourcex/KeybMapSDL.h	\
+ sourcex/KeybMapSDL2.h	\
  sourcex/ExportBMP.h	\
  sourcex/ExportWAV.h	\
  freebios/freebios.h	\
@@ -114,10 +117,15 @@ $(BUILD)/%.o: %.c $(DEPENDSHDR)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(TARGET): $(BUILDOBJS)
-	$(CC) -o $(TARGET) $(BUILDOBJS) $(SLFLAGS)
+	$(LD) -o $(TARGET) $(BUILDOBJS) $(SLFLAGS)
+	$(STRIP) $(TARGET)
 
-win:
-	make -f makefile.win
+win: $(BUILD) $(WINTARGET)
+
+$(WINTARGET): $(BUILDOBJS) $(WINRES_SRC)
+	windres $(INCLUDE) $(WINRES_SRC) $(WINRES_TRG)
+	$(LD) -o $(WINTARGET) $(BUILDOBJS) $(WINRES_TRG) $(SLFLAGS)
+	$(STRIP) $(WINTARGET)
 
 clean:
 	-rm -f $(BUILDOBJS) $(TARGET) $(WINTARGET) $(WINRES_TRG)

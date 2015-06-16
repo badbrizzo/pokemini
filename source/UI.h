@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -50,12 +50,12 @@ enum {
 typedef int (*TUIMenu_Callback)(int index, int reason);
 
 // Menu item
-typedef struct {
+typedef struct TUIMenu_Item {
 	int code;			// Code: 0 = Yellow, 1 = Aqua, 9 = End-of-list
 	int index;			// Index of item
 	char caption[32];		// Text to display, last entry will be the title
 	TUIMenu_Callback callback;	// Callback, last entry will receive UIMENU_LOAD
-	void *prev;			// Must be NULL
+	struct TUIMenu_Item *prev;	// Must be NULL
 } TUIMenu_Item;
 
 // External font and icons palette

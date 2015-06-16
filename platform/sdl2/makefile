@@ -1,8 +1,5 @@
-# PokeMini Makefile for SDL 2
+# PokeMini Makefile for SDL 2.x (Linux)
 
-CC = gcc
-LD = gcc
-STRIP = strip
 POKEROOT = ../../
 BUILD = Build
 TARGET = PokeMini
@@ -11,8 +8,8 @@ WINTARGET = PokeMini.exe
 WINRES_TRG = $(BUILD)/pokemini_rc.o
 WINRES_SRC = $(POKEROOT)resource/pokemini.rc
 
-CFLAGS = -O -Wall `$(SDL_BASE)sdl2-config --cflags` $(INCLUDE)
-SLFLAGS = -O `$(SDL_BASE)sdl2-config --libs` -lm -lz
+CFLAGS += -Wall `$(SDL_BASE)sdl2-config --cflags` $(INCLUDE)
+SLFLAGS += `$(SDL_BASE)sdl2-config --libs` -lm -lz
 
 INCDIRS = source sourcex resource freebios dependencies/minizip
 
@@ -117,15 +114,10 @@ $(BUILD)/%.o: %.c $(DEPENDSHDR)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(TARGET): $(BUILDOBJS)
-	$(LD) -o $(TARGET) $(BUILDOBJS) $(SLFLAGS)
-	$(STRIP) $(TARGET)
+	$(CC) -o $(TARGET) $(BUILDOBJS) $(SLFLAGS)
 
-win: $(BUILD) $(WINTARGET)
-
-$(WINTARGET): $(BUILDOBJS) $(WINRES_SRC)
-	windres $(INCLUDE) $(WINRES_SRC) $(WINRES_TRG)
-	$(LD) -o $(WINTARGET) $(BUILDOBJS) $(WINRES_TRG) $(SLFLAGS)
-	$(STRIP) $(WINTARGET)
+win:
+	make -f makefile.win
 
 clean:
 	-rm -f $(BUILDOBJS) $(TARGET) $(WINTARGET) $(WINRES_TRG)
