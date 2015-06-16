@@ -359,19 +359,20 @@ void MinxCPU_OnIRQAct(uint8_t intr)
 	}
 }
 
+int PokeHWCycles = 0;
 void pmmusic_emulate(int lcylc)
 {
-	int cylc = 16;
+	PokeHWCycles = 16;
 	if (RequireSoundSync) {
 		while (lcylc > 0) {
-			MinxTimers_Sync(cylc);
-			MinxAudio_Sync(cylc);
-			lcylc -= cylc;
+			MinxTimers_Sync();
+			MinxAudio_Sync();
+			lcylc -= PokeHWCycles;
 		}
 	} else {
 		while (lcylc > 0) {
-			MinxTimers_Sync(cylc);
-			lcylc -= cylc;
+			MinxTimers_Sync();
+			lcylc -= PokeHWCycles;
 		}
 	}
 }
