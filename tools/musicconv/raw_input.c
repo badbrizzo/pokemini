@@ -56,6 +56,7 @@ void raw_handle_ctrlc(void (*func)(void))
 #include <termios.h>
 #include <unistd.h>
 #include <sys/select.h>
+#include <signal.h>
 
 int raw_input_check(void)
 {
@@ -85,7 +86,7 @@ int raw_input_check(void)
 	return res;
 }
 
-void sdump_close(int dummy)
+void raw_handle_signal(int signo)
 {
 	if (raw_handle_callback) raw_handle_callback();
 }
