@@ -2,16 +2,16 @@
 // Microsoft Visual C++ generated include file.
 // Used by PokeMini_Win32.rc
 //
-#define IDI_POKEMINI                    100
-#define IDI_SMALL                       101
-#define IDR_MENU                        102
-#define IDR_WINXP                       103
-#define IDR_ACCELERATOR                 104
-#define IDD_KEYDEF                      105
-#define IDD_JOYDEF                      106
-#define IDD_CUSTOMPALEDIT               107
-#define IDI_MINFILE                     108
-#define IDI_MINCFILE                    109
+#define IDI_ICON1                       100
+#define IDI_ICON2                       101
+#define IDI_ICON3                       102
+#define IDR_MENU                        103
+#define IDR_WINXP                       104
+#define IDR_ACCELERATOR                 105
+#define IDD_KEYDEF                      106
+#define IDD_JOYDEF                      107
+#define IDD_CUSTOMPALEDIT               108
+#define IDD_CUSTOMSLIDER                109
 #define IDC_STATUSBAR                   120
 #define IDC_KEYL_C                      120
 #define IDC_TITLETIMER                  121
@@ -73,6 +73,9 @@
 #define IDC_CUSTOM1DARKGL               1048
 #define IDC_CUSTOM1LIGHTBL2             1049
 #define IDC_CUSTOM1DARKBL               1049
+#define IDC_CUSTOMSLIDER                1052
+#define IDC_CUSTOMSLIDERL               1053
+#define IDC_CUSTOMSLIDERT               1053
 #define IDC_CUSTOM2LIGHTP               1057
 #define IDC_CUSTOM2LIGHTRS              1058
 #define IDC_CUSTOM2LIGHTGS              1059
@@ -197,14 +200,35 @@
 #define ID_RUMBLELEVEL_1                40156
 #define ID_RUMBLELEVEL_2                40157
 #define ID_RUMBLELEVEL_3                40158
+#define ID_OPTIONS_LCDCONTRAST          40159
+#define ID_LCDCONTRAST_DEFAULT          40160
+#define ID_LCDCONTRAST_LOWEST           40161
+#define ID_LCDCONTRAST_HIGHEST          40162
+#define ID_LCDCONTRAST_CUSTOM           40163
+#define ID_OPTIONS_LCDBRIGHTNESS        40164
+#define ID_LCDBRIGHTNESS_DEFAULT        40165
+#define ID_LCDBRIGHTNESS_LIGHTER        40166
+#define ID_LCDBRIGHTNESS_LIGHT          40167
+#define ID_LCDBRIGHTNESS_DARK           40168
+#define ID_LCDBRIGHTNESS_DARKER         40169
+#define ID_LCDBRIGHTNESS_CUSTOM         40170
+#define ID_LCDCONTRAST_MEDIUM           40171
+#define ID_LCDBRIGHT_DEFAULT            40172
+#define ID_LCDBRIGHT_LIGHTER            40173
+#define ID_LCDBRIGHT_LIGHT              40174
+#define ID_LCDBRIGHT_DARK               40175
+#define ID_LCDBRIGHT_DARKER             40176
+#define ID_LCDBRIGHT_CUSTOM             40177
+#define ID_LCDCONTRAST_LOW              40178
+#define ID_LCDCONTRAST_HIGH             40179
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        110
-#define _APS_NEXT_COMMAND_VALUE         40159
-#define _APS_NEXT_CONTROL_VALUE         1052
+#define _APS_NEXT_COMMAND_VALUE         40180
+#define _APS_NEXT_CONTROL_VALUE         1054
 #define _APS_NEXT_SYMED_VALUE           103
 #endif
 #endif

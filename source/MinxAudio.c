@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,6 +30,20 @@ int MinxAudio_FIFOSize = 0;
 int MinxAudio_FIFOMask = 0;
 int MinxAudio_FIFOThreshold = 0;
 int16_t (*MinxAudio_AudioProcess)(void) = NULL;
+
+// Timers counting frequency table
+const uint32_t MinxAudio_CountFreq[32] = {
+	// Osci1 disabled
+	1, 0, 0, 0, 0, 0, 0, 0,
+	// Osci1 Enabled
+	(4000000/2), (4000000/8), (4000000/32), (4000000/64),
+	(4000000/128), (4000000/256), (4000000/1024), (4000000/4096),
+	// Osci2 disabled
+	0, 0, 0, 0, 0, 0, 0, 0,
+	// Osci2 Enabled
+	(32768/1), (32768/2), (32768/4), (32768/8),
+	(32768/16), (32768/32), (32768/64), (32768/128)
+};
 
 //
 // FIFO I/O
@@ -175,10 +189,10 @@ void MinxAudio_ChangeFilter(int piezo)
 	PiezoFilter = piezo;
 }
 
-void MinxAudio_Sync(int cycles)
+void MinxAudio_Sync(void)
 {
 	// Process single audio sample
-	MinxAudio.AudioCCnt += MINX_AUDIOINC * cycles;
+	MinxAudio.AudioCCnt += MINX_AUDIOINC * PokeHWCycles;
 	if (MinxAudio.AudioCCnt >= 0x01000000) {
 		MinxAudio.AudioCCnt -= 0x01000000;
 		if (MinxAudio_AudioProcess) {
@@ -251,7 +265,7 @@ void MinxAudio_GetEmulated(int *Sound_Frequency, int *Pulse_Width)
 	int Preset_Value, Sound_Pivot;
 
 	// Calculate timer 3 frequency
-	Timer3_Frequency = MinxTimers_CountFreq[(PMR_TMR3_SCALE & 0xF) | ((PMR_TMR3_OSC & 0x01) << 4)];
+	Timer3_Frequency = MinxAudio_CountFreq[(PMR_TMR3_SCALE & 0xF) | ((PMR_TMR3_OSC & 0x01) << 4)];
 	if (!(PMR_TMR3_CTRL_L & 0x04)) Timer3_Frequency = 0;
 	if (PMR_TMR3_OSC & 0x01) {
 		// Osci2
@@ -391,6 +405,40 @@ void MinxAudio_GetSamplesS16(int16_t *soundout, int numsamples)
 		}
 	} else {
 		while (numsamples--) *soundout++ = 0x0000;
+	}
+}
+
+void MinxAudio_GetSamplesU8Ch(uint8_t *soundout, int numsamples, int channels)
+{
+	int j;
+	if (SoundEngine == MINX_AUDIO_GENERATED) {
+		MinxAudio_GenerateEmulatedU8(soundout, numsamples, channels);
+		return;
+	}
+	if (AudioEnabled && SoundEngine) {
+		while (numsamples--) {
+			uint8_t sample = 0x80 + (MinxAudio_FIFORead() >> 8);
+			for (j=0; j<channels; j++) *soundout++ = sample;
+		}
+	} else {
+		while (numsamples--) for (j=0; j<channels; j++) *soundout++ = 0x80;
+	}
+}
+
+void MinxAudio_GetSamplesS16Ch(int16_t *soundout, int numsamples, int channels)
+{
+	int j;
+	if (SoundEngine == MINX_AUDIO_GENERATED) {
+		MinxAudio_GenerateEmulatedS16(soundout, numsamples, channels);
+		return;
+	}
+	if (AudioEnabled && SoundEngine) {
+		while (numsamples--) {
+			int16_t sample = MinxAudio_FIFORead();
+			for (j=0; j<channels; j++) *soundout++ = sample;
+		}
+	} else {
+		while (numsamples--) for (j=0; j<channels; j++) *soundout++ = 0x0000;
 	}
 }
 

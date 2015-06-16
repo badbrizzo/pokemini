@@ -6,12 +6,8 @@ Dependencies: GTK+
 This was an experiment of how to add colors information into roms while remaining 100% compability,
 the real system doesn't support colors, only the emulator can display the extra information.
 
-
-
 Latest version can be found in:
-
-http://code.google.com/p/pokemini/
-
+http://pokemini.sourceforge.net/
 
 
 Changes from 1.2 to 1.3:

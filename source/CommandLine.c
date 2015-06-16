@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,11 +41,12 @@ void CommandLineInit(void)
 	// Default booleans / integers
 	CommandLine.forcefreebios = 0;	// Force FreeBIOS
 	CommandLine.updatertc = 2;	// Update RTC (0=Off, 1=State, 2=Host)
-	CommandLine.eeprom_share = 1;	// EEPROM Share
-	CommandLine.sound = 4;		// Sound Engine
+	CommandLine.eeprom_share = 0;	// EEPROM Share
 #ifdef PERFORMANCE
+	CommandLine.sound = MINX_AUDIO_GENERATED;
 	CommandLine.piezofilter = 0;	// Piezo Filter
 #else
+	CommandLine.sound = MINX_AUDIO_DIRECTPWM;
 	CommandLine.piezofilter = 1;	// Piezo Filter
 #endif
 	CommandLine.lcdfilter = 1;	// LCD Filter
@@ -94,6 +95,8 @@ void CommandLineInit(void)
 	CommandLine.custompal[1] = 0x000000;	// Custom Palette 1 Dark
 	CommandLine.custompal[2] = 0xFFFFFF;	// Custom Palette 2 Light
 	CommandLine.custompal[3] = 0x000000;	// Custom Palette 2 Dark
+	CommandLine.lcdcontrast = 64;		// LCD contrast
+	CommandLine.lcdbright = 0;		// LCD bright offset
 	CommandLine.multicart = 0;	// Multicart support
 #ifdef PERFORMANCE
 	CommandLine.synccycles = 64;	// Sync cycles to 64 (Performance)
@@ -121,8 +124,6 @@ int CommandLineCustomArgs(int argc, char **argv, int *extra, const TCommandLineC
 				} else if (custom[i].type == COMMANDLINE_STR) {
 					if (--argc && custom[i].ref) strncpy((char *)custom[i].ref, *++argv, custom[i].numa);
 					*extra = 1;
-				} else if (custom[i].type == COMMANDLINE_STRSET) {
-					if (custom[i].ref) strcpy((char *)custom[i].ref, (char *)custom[i].numa);
 				}
 				return 1;
 			}
@@ -180,13 +181,14 @@ int CommandLineArgs(int argc, char **argv, const TCommandLineCustom *custom)
 			else if (!strcasecmp(*argv, "-nojoystick")) CommandLine.joyenabled = 0;
 			else if (!strcasecmp(*argv, "-joystick")) CommandLine.joyenabled = 1;
 			else if (!strcasecmp(*argv, "-joyid")) { if (--argc) CommandLine.joyid = BetweenNum(atoi_Ex(*++argv, 0), 0, 15); }
-			else if (!strcasecmp(*argv, "-nomulticart")) CommandLine.multicart = 0;
-			else if (!strcasecmp(*argv, "-multicart")) { if (--argc) CommandLine.multicart = BetweenNum(atoi_Ex(*++argv, 0), 0, 2); }
 			else if (!strcasecmp(*argv, "-custom1light")) { if (--argc) CommandLine.custompal[0] = BetweenNum(atoi_Ex(*++argv, 0xFFFFFF), 0x000000, 0xFFFFFF); }
 			else if (!strcasecmp(*argv, "-custom1dark")) { if (--argc) CommandLine.custompal[1] = BetweenNum(atoi_Ex(*++argv, 0x000000), 0x000000, 0xFFFFFF); }
 			else if (!strcasecmp(*argv, "-custom2light")) { if (--argc) CommandLine.custompal[2] = BetweenNum(atoi_Ex(*++argv, 0xFFFFFF), 0x000000, 0xFFFFFF); }
 			else if (!strcasecmp(*argv, "-custom2dark")) { if (--argc) CommandLine.custompal[3] = BetweenNum(atoi_Ex(*++argv, 0x000000), 0x000000, 0xFFFFFF); }
 			else if (!strcasecmp(*argv, "-synccycles")) { if (--argc) CommandLine.synccycles = BetweenNum(atoi_Ex(*++argv, 8), 8, 512); }
+			else if (!strcasecmp(*argv, "-multicart")) { if (--argc) CommandLine.multicart = BetweenNum(atoi_Ex(*++argv, 0), 0, 2); }
+			else if (!strcasecmp(*argv, "-lcdcontrast")) { if (--argc) CommandLine.lcdcontrast = BetweenNum(atoi_Ex(*++argv, 64), 0, 100); }
+			else if (!strcasecmp(*argv, "-lcdbright")) { if (--argc) CommandLine.lcdbright = BetweenNum(atoi_Ex(*++argv, 0), -100, 100); }
 			else if (CommandLineCustomArgs(argc, argv, &extra, custom)) { argc -= extra; argv += extra; }
 			else return 0;
 		} else {
@@ -335,6 +337,8 @@ int CommandLineConfFile(const char *filename, const char *platcfgfile, const TCo
 			else if (!strcasecmp(key, "custom2dark")) CommandLine.custompal[3] = BetweenNum(atoi_Ex(value, 0x000000), 0x000000, 0xFFFFFF);
 			else if (!strcasecmp(key, "multicart")) CommandLine.multicart = BetweenNum(atoi_Ex(value, 0), 0, 2);
 			else if (!strcasecmp(key, "synccycles")) CommandLine.synccycles = BetweenNum(atoi_Ex(value, 8), 8, 512);
+			else if (!strcasecmp(key, "lcdcontrast")) CommandLine.lcdcontrast = BetweenNum(atoi_Ex(value, 64), 0, 100);
+			else if (!strcasecmp(key, "lcdbright")) CommandLine.lcdbright = BetweenNum(atoi_Ex(value, 0), -100, 100);
 			else PokeDPrint(POKEMSG_ERR, "Conf warning: Unknown '%s' key\n", key);
 		}
 		fclose(fi);
@@ -453,6 +457,8 @@ int CommandLineConfSave(void)
 			fprintf(fo, "custom2dark=0x%06X\n", (unsigned int)CommandLine.custompal[3]);
 			fprintf(fo, "multicart=%d\n", CommandLine.multicart);
 			fprintf(fo, "synccycles=%d\n", CommandLine.synccycles);
+			fprintf(fo, "lcdcontrast=%d\n", CommandLine.lcdcontrast);
+			fprintf(fo, "lcdbright=%d\n", CommandLine.lcdbright);
 			fclose(fo);
 		}
 	}
@@ -562,10 +568,10 @@ void PrintHelpUsage(FILE *fout)
 	fprintf(fout, "  -bios otherbios.min    Load BIOS file\n");
 	fprintf(fout, "  -noeeprom              Discard EEPROM data\n");
 	fprintf(fout, "  -eeprom pokemini.eep   Load/Save EEPROM file\n");
-	fprintf(fout, "  -eepromshare           Share EEPROM to all ROMs (default)\n");
-	fprintf(fout, "  -noeepromshare         Each ROM will use individual EEPROM\n");
-	fprintf(fout, "  -nostate               Discard State data (default)\n");
-	fprintf(fout, "  -state pokemini.sta    Load/Save state file\n");
+	fprintf(fout, "  -eepromshare           Share EEPROM to all ROMs\n");
+	fprintf(fout, "  -noeepromshare         Individual EEPROM for each ROM (def)\n");
+	fprintf(fout, "  -nostate               Discard auto-state save (def)\n");
+	fprintf(fout, "  -state pokemini.sta    Load/Save auto-state file\n");
 	fprintf(fout, "  -nortc                 No RTC\n");
 	fprintf(fout, "  -statertc              RTC time difference in savestates\n");
 	fprintf(fout, "  -hostrtc               RTC match the Host clock (def)\n");
@@ -584,18 +590,19 @@ void PrintHelpUsage(FILE *fout)
 	fprintf(fout, "  -analog                LCD Mode: Pretend real LCD (def)\n");
 	fprintf(fout, "  -fullbattery           Emulate with a full battery (def)\n");
 	fprintf(fout, "  -lowbattery            Emulate with a weak battery\n");
-	fprintf(fout, "  -palette n             Select palette for colors (0 to 15)\n");
-	fprintf(fout, "  -rumblelvl n           Rumble level (0 to 3)\n");
+	fprintf(fout, "  -palette 0             Select palette for colors (0 to 15)\n");
+	fprintf(fout, "  -rumblelvl 3           Rumble level (0 to 3)\n");
 	fprintf(fout, "  -nojoystick            Disable joystick (def)\n");
 	fprintf(fout, "  -joystick              Enable joystick\n");
 	fprintf(fout, "  -joyid 0               Set joystick ID\n");
-	fprintf(fout, "  -nomulticart           Disable multicart support (def)\n");
-	fprintf(fout, "  -multicart 1           Multicart support (type 1 only)\n");
 	fprintf(fout, "  -custom1light 0xFFFFFF Palette Custom 1 Light\n");
 	fprintf(fout, "  -custom1dark 0x000000  Palette Custom 1 Dark\n");
 	fprintf(fout, "  -custom2light 0xFFFFFF Palette Custom 2 Light\n");
 	fprintf(fout, "  -custom2dark 0x000000  Palette Custom 2 Dark\n");
 	fprintf(fout, "  -synccycles 8          Number of cycles per hardware sync.\n");
+	fprintf(fout, "  -multicart 0           Multicart type (0 to 2)\n");
+	fprintf(fout, "  -lcdcontrast 64        LCD contrast boost in percent\n");
+	fprintf(fout, "  -lcdbright 0           LCD brightness offset in percent\n");
 }
 
 int PrintHelpUsageStr(char *out)
@@ -608,10 +615,10 @@ int PrintHelpUsageStr(char *out)
 		strcat(out, "  -bios otherbios.min    Load BIOS file\n");
 		strcat(out, "  -noeeprom              Discard EEPROM data\n");
 		strcat(out, "  -eeprom pokemini.eep   Load/Save EEPROM file\n");
-		strcat(out, "  -eepromshare           Share EEPROM to all ROMs (default)\n");
-		strcat(out, "  -noeepromshare         Each ROM will use individual EEPROM\n");
-		strcat(out, "  -nostate               Discard State data (default)\n");
-		strcat(out, "  -state pokemini.sta    Load/Save state file\n");
+		strcat(out, "  -eepromshare           Share EEPROM to all ROMs (def)\n");
+		strcat(out, "  -noeepromshare         Individual EEPROM for each ROM (def)\n");
+		strcat(out, "  -nostate               Discard auto-state save (def)\n");
+		strcat(out, "  -state pokemini.sta    Load/Save auto-state file\n");
 		strcat(out, "  -nortc                 No RTC\n");
 		strcat(out, "  -statertc              RTC time difference in savestates\n");
 		strcat(out, "  -hostrtc               RTC match the Host clock (def)\n");
@@ -630,18 +637,19 @@ int PrintHelpUsageStr(char *out)
 		strcat(out, "  -analog                LCD Mode: Pretend real LCD (def)\n");
 		strcat(out, "  -fullbattery           Emulate with a full battery (def)\n");
 		strcat(out, "  -lowbattery            Emulate with a weak battery\n");
-		strcat(out, "  -palette n             Select palette for colors (0 to 15)\n");
-		strcat(out, "  -rumblelvl n           Rumble level (0 to 3)\n");
+		strcat(out, "  -palette 0             Select palette for colors (0 to 15)\n");
+		strcat(out, "  -rumblelvl 3           Rumble level (0 to 3)\n");
 		strcat(out, "  -nojoystick            Disable joystick (def)\n");
 		strcat(out, "  -joystick              Enable joystick\n");
 		strcat(out, "  -joyid 0               Set joystick ID\n");
-		strcat(out, "  -nomulticart           Disable multicart support (def)\n");
-		strcat(out, "  -multicart 1           Multicart support (type 1 only)\n");
 		strcat(out, "  -custom1light 0xFFFFFF Palette Custom 1 Light\n");
 		strcat(out, "  -custom1dark 0x000000  Palette Custom 1 Dark\n");
 		strcat(out, "  -custom2light 0xFFFFFF Palette Custom 2 Light\n");
 		strcat(out, "  -custom2dark 0x000000  Palette Custom 2 Dark\n");
 		strcat(out, "  -synccycles 8          Number of cycles per hardware sync.\n");
+		strcat(out, "  -multicart 0           Multicart type (0 to 2)\n");
+		strcat(out, "  -lcdcontrast 64        LCD contrast boost in percent\n");
+		strcat(out, "  -lcdbright 0           LCD brightness offset in percent\n");
 	}
 	return 4096;
 }

@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@ static GtkItemFactory *ItemFactory;
 static GtkAccelGroup *AccelGroup;
 static GtkBox *VBox1;
 static GtkMenuBar *MenuBar;
+static GtkLabel *LabelRunFull;
 static GtkNotebook *ViewNB;
 static SGtkXDrawingView CodeView;
 static SGtkXDrawingView DataView;
@@ -1061,6 +1062,10 @@ int SymbWindow_Create(void)
 	gtk_box_pack_start(VBox1, GTK_WIDGET(MenuBar), FALSE, TRUE, 0);
 	gtk_widget_show(GTK_WIDGET(MenuBar));
 
+	// Label that warn when running full speed
+	LabelRunFull = GTK_LABEL(gtk_label_new("To view content you must stop emulation or run in debug frames/steps."));
+	gtk_box_pack_start(VBox1, GTK_WIDGET(LabelRunFull), FALSE, TRUE, 0);
+
 	// Code View
 	CodeView.on_exposure = SGtkXDVCB(CodeView_exposure);
 	CodeView.on_scroll = SGtkXDVCB(AnyView_scroll);
@@ -1208,6 +1213,19 @@ void SymbWindow_ROMLoaded(const char *filename)
 	}
 	SymbsModified = 0;
 	SymbWindow_Reload();
+}
+
+void SymbWindow_Sensitive(int enabled)
+{
+	if (enabled) {
+		gtk_widget_hide(GTK_WIDGET(LabelRunFull));
+		gtk_widget_show(GTK_WIDGET(ViewNB));
+		gtk_widget_show(GTK_WIDGET(PMSymbFile));
+	} else {
+		gtk_widget_show(GTK_WIDGET(LabelRunFull));
+		gtk_widget_hide(GTK_WIDGET(ViewNB));
+		gtk_widget_hide(GTK_WIDGET(PMSymbFile));
+	}
 }
 
 void SymbWindow_Refresh(int now)

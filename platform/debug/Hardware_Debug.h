@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,8 +32,9 @@ enum {
 extern uint8_t *PMD_TrapPoints;
 
 // Trace code addresses
-extern uint32_t TRACAddr[256];
-extern uint8_t TRACPoint;
+#define TRACECODE_LENGTH 10000
+extern uint32_t TRACAddr[TRACECODE_LENGTH];
+extern int TRACPoint;
 
 // Cycle timers
 extern int CYCTmr1Ena;

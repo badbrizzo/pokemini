@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2014  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@ int KeyboardMapHostKeysym_B[10];
 // Temp keyboard map
 static int TMP_keyb_a[10];
 static int TMP_keyb_b[10];
+static int KeyLastKey = -1;
 
 // Keyboard character names
 char *KeyboardMapStr[PMKEYB_EOL] = {
@@ -45,7 +46,7 @@ char *KeyboardMapStr[PMKEYB_EOL] = {
 	"HOME", "END",
 	"PAGEUP", "PAGEDOWN",
 
-	"NUMLOCK", "CAPSLOCK", "SCROLLOCK",
+	"NUMLOCK", "CAPSLOCK", "SCROLLLOCK",
 	"KP_PERIOD", "KP_DIVIDE",
 	"KP_MULTIPLY", "KP_MINUS",
 	"KP_PLUS", "KP_ENTER",
@@ -104,6 +105,7 @@ int UIItems_KeyboardC(int index, int reason);
 TUIMenu_Item UIItems_Keyboard[] = {
 	{ 0,  0, "Go back...", UIItems_KeyboardC },
 	{ 0,  1, "Apply changes...", UIItems_KeyboardC },
+	{ 0, 40, "Check inputs...", UIItems_KeyboardC },
 	{ 0,  4, "Menu Key: %s", UIItems_KeyboardC },
 	{ 0,  5, "A Key: %s", UIItems_KeyboardC },
 	{ 0,  6, "B Key: %s", UIItems_KeyboardC },
@@ -126,6 +128,24 @@ TUIMenu_Item UIItems_Keyboard[] = {
 	{ 0, 33, "Shake Alt: %s", UIItems_KeyboardC },
 	{ 9,  0, "Keyboard", UIItems_KeyboardC }
 };
+
+int KeyboardTestButtons(int line, char *outtext)
+{
+	int i, key = 0;
+	if (line == 0) {
+		if (KeyLastKey == -1) sprintf(outtext, "Last key: None");
+		else {
+			for (i=0; i<PMKEYB_EOL; i++) {
+				if (KeyLastKey == (*KeyboardHostRemap)[i]) {
+					key = i;
+					break;
+				}
+			}
+			sprintf(outtext, "Last key: %s", GetKeyboardMapStr(key));
+		}
+	}
+	return line < 1;
+}
 
 int UIItems_KeyboardC(int index, int reason)
 {
@@ -180,6 +200,10 @@ int UIItems_KeyboardC(int index, int reason)
 				TMP_keyb_b[index-24]++;
 				if (TMP_keyb_b[index-24] >= PMKEYB_EOL) TMP_keyb_b[index-24] = 0;
 				break;
+			case 40:
+				KeyLastKey = -1;
+				UIMenu_RealTimeMessage(KeyboardTestButtons);
+				break;
 		}
 	}
 	UIMenu_ChangeItem(UIItems_Keyboard, 4, "Menu Key: %s", GetKeyboardMapStr(TMP_keyb_a[0]));
@@ -220,6 +244,9 @@ void KeyboardEnterMenu(void)
 int KeyboardPressEvent(int keysym)
 {
 	int index, took = 0;
+
+	KeyLastKey = keysym;
+
 	for (index=0; index<10; index++) {
 		if (KeyboardMapHostKeysym_A[index] == keysym) {
 			took = 1;

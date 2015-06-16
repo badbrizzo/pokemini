@@ -49,6 +49,8 @@ typedef struct {
 
 FILE_ECODE *Open_ExportCode(int format, const char *filename);
 void Comment_ExportCode(FILE_ECODE *fec, const char *fmt, ...);
+void PrintASM_ExportCode(FILE_ECODE *fec, const char *fmt, ...);
+void PrintC_ExportCode(FILE_ECODE *fec, const char *fmt, ...);
 int WriteArray_ExportCode(FILE_ECODE *fec, int bits, const char *varname, void *data, int bytes);
 int BlockOpen_ExportCode(FILE_ECODE *fec, int bits, const char *varname);
 int BlockWrite_ExportCode(FILE_ECODE *fec, int data);

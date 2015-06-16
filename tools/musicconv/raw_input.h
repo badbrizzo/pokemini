@@ -19,6 +19,9 @@
 #ifndef RAW_INPUT_H
 #define RAW_INPUT_H
 
+extern int raw_notbreak;
+
 int raw_input_check(void);
+void raw_handle_ctrlc(void (*func)(void));
 
 #endif

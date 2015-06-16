@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ typedef void (*TMinxPRC_Render)(void);
 extern TMinxPRC MinxPRC;
 
 // Invert bit table
-extern uint8_t PRCInvertBit[256];
+extern const uint8_t PRCInvertBit[256];
 
 // Stall CPU
 extern int PRCAllowStall;
@@ -77,7 +77,7 @@ int MinxPRC_LoadState(FILE *fi, uint32_t bsize);
 
 int MinxPRC_SaveState(FILE *fi);
 
-void MinxPRC_Sync(int32_t cycles);
+void MinxPRC_Sync(void);
 
 uint8_t MinxPRC_ReadReg(uint8_t reg);
 

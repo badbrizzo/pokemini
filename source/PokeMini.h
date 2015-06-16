@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -52,6 +52,9 @@ extern int PM_ROM_Mask;		// Pokemon-Mini ROM Mask
 extern int PokeMini_LCDMode;	// LCD Mode
 extern int PokeMini_ColorFormat;	// Color Format (0 = 8x8, 1 = 4x4)
 extern int PokeMini_HostBattStatus;	// Host battery status
+
+// Number of cycles to process on hardware
+extern int PokeHWCycles;
 
 enum {
 	LCDMODE_ANALOG = 0,
@@ -140,21 +143,21 @@ static inline void MinxPRC_OnWrite(int cpu, uint32_t addr, uint8_t data)
 	{ tmp32 = 0; tmp16 = 0; }
 
 #define POKELOADSS_32(var) {\
-	rsize += fread((void *)&tmp32, 1, 4, fi);\
+	rsize += (uint32_t)fread((void *)&tmp32, 1, 4, fi);\
 	var = Endian32(tmp32);\
 }
 
 #define POKELOADSS_16(var) {\
-	rsize += fread((void *)&tmp16, 1, 2, fi);\
+	rsize += (uint32_t)fread((void *)&tmp16, 1, 2, fi);\
 	var = Endian16(tmp16);\
 }
 
 #define POKELOADSS_8(var) {\
-	rsize += fread((void *)&var, 1, 1, fi);\
+	rsize += (uint32_t)fread((void *)&var, 1, 1, fi);\
 }
 
 #define POKELOADSS_A(array, size) {\
-	rsize += fread((void *)array, 1, size, fi);\
+	rsize += (uint32_t)fread((void *)array, 1, size, fi);\
 }
 
 #define POKELOADSS_X(size) {\
@@ -176,26 +179,26 @@ static inline void MinxPRC_OnWrite(int cpu, uint32_t addr, uint8_t data)
 
 #define POKESAVESS_32(var) {\
 	tmp32 = Endian32((uint32_t)var);\
-	wsize += fwrite((void *)&tmp32, 1, 4, fi);\
+	wsize += (uint32_t)fwrite((void *)&tmp32, 1, 4, fi);\
 }
 
 #define POKESAVESS_16(var) {\
 	tmp16 = Endian16((uint16_t)var);\
-	wsize += fwrite((void *)&tmp16, 1, 2, fi);\
+	wsize += (uint32_t)fwrite((void *)&tmp16, 1, 2, fi);\
 }
 
 #define POKESAVESS_8(var) {\
-	wsize += fwrite((void *)&var, 1, 1, fi);\
+	wsize += (uint32_t)fwrite((void *)&var, 1, 1, fi);\
 }
 
 #define POKESAVESS_A(array, size) {\
-	wsize += fwrite((void *)array, 1, size, fi);\
+	wsize += (uint32_t)fwrite((void *)array, 1, size, fi);\
 }
 
 #define POKESAVESS_X(size) {\
 	tmp16 = 0;\
 	for (tmp32=0; tmp32<(uint32_t)size; tmp32++) {\
-		wsize += fwrite((void *)&tmp16, 1, 1, fi);\
+		wsize += (uint32_t)fwrite((void *)&tmp16, 1, 1, fi);\
 	}\
 }
 
@@ -218,9 +221,6 @@ void PokeMini_ApplyChanges();
 
 // User press or release a Pokemon-Mini key
 void PokeMini_KeypadEvent(uint8_t key, int pressed);
-
-// User shake the Pokemon-Mini
-void PokeMini_ShockEvent();
 
 // Low power battery emulation
 void PokeMini_LowPower(int enable);

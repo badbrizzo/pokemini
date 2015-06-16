@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,20 +23,36 @@
 
 // Temp joystick map
 static int TMP_enable;
+static int TMP_deviceid;
 static int TMP_axis_dpad;
 static int TMP_hats_dpad;
 static int TMP_joy[10];
+static int JoyTestMode = 0;
+static int JoyLastButton = -1;
+static int JoyLastXAxis = 0;
+static int JoyLastYAxis = 0;
+static int JoyLastHat = 0;
 static int JoyDeadZone = 30000;
 static int JoyAllowDisable = 1;
 static char **Joybuttons_names = NULL;
 static int Joybuttons_num = JOY_BUTTONS;
+static TJoystickUpdateCB JoystickUpdateCB = NULL;
+static const char *JoyLastIndexStr[] = {
+	"None",
+	"Left",
+	"Right",
+	"Up",
+	"Down"
+};
 
 // Joystick menu
 int UIItems_JoystickC(int index, int reason);
 TUIMenu_Item UIItems_Joystick[] = {
 	{ 0,  0, "Go back...", UIItems_JoystickC },
 	{ 0,  1, "Apply changes...", UIItems_JoystickC },
+	{ 0, 21, "Check inputs...", UIItems_JoystickC },
 	{ 0,  2, "Enable Joystick: %s", UIItems_JoystickC },
+	{ 0, 20, "Device Index: %i", UIItems_JoystickC },
 	{ 0,  3, "Axis as D-Pad: %s", UIItems_JoystickC },
 	{ 0,  4, "Hats as D-Pad: %s", UIItems_JoystickC },
 	{ 0,  8, "Menu", UIItems_JoystickC },
@@ -64,6 +80,27 @@ static const char *PM_Keys[] = {
 	"Power",
 	"Shake"
 };
+
+int JoyTestButtons(int line, char *outtext)
+{
+	if (outtext == NULL) {
+		JoyTestMode = line;
+		return 0;
+	}
+	if (line == 0) {
+		if (JoyLastButton == -1) {
+			sprintf(outtext, "Last button: None");
+		} else if (Joybuttons_names && (JoyLastButton < Joybuttons_num)) {
+			sprintf(outtext, "Last button: %s", Joybuttons_names[JoyLastButton+1]);
+		} else {
+			sprintf(outtext, "Last button: %i", JoyLastButton);
+		}
+	}
+	if (line == 1) sprintf(outtext, "Last hat: %s", JoyLastIndexStr[JoyLastHat]);
+	if (line == 2) sprintf(outtext, "X-Axis: %i", JoyLastXAxis);
+	if (line == 3) sprintf(outtext, "Y-Axis: %i", JoyLastYAxis);
+	return line < 4;
+}
 
 int UIItems_JoystickC(int index, int reason)
 {
@@ -99,6 +136,10 @@ int UIItems_JoystickC(int index, int reason)
 					if (TMP_joy[index-8] < -1) TMP_joy[index-8] = Joybuttons_num-1;
 				}
 				break;
+			case 20:
+				TMP_deviceid--;
+				if (TMP_deviceid < 0) TMP_deviceid = 0;
+				break;
 		}
 	}
 	if (reason == UIMENU_RIGHT) {
@@ -108,6 +149,7 @@ int UIItems_JoystickC(int index, int reason)
 			case 1: CommandLine.joyenabled = TMP_enable;
 				CommandLine.joyaxis_dpad = TMP_axis_dpad;
 				CommandLine.joyhats_dpad = TMP_hats_dpad;
+				CommandLine.joyid = TMP_deviceid;
 				for (i=0; i<10; i++) {
 					CommandLine.joybutton[i] = TMP_joy[i];
 				}
@@ -116,6 +158,7 @@ int UIItems_JoystickC(int index, int reason)
 				UIMenu_SetMessage("", 1);
 				UIMenu_SetMessage("Changes applied!", 0);
 				UIMenu_EndMessage(60);
+				if (JoystickUpdateCB) JoystickUpdateCB(CommandLine.joyenabled, CommandLine.joyid);
 				break;
 			case 2:
 				TMP_enable = !TMP_enable;
@@ -139,12 +182,24 @@ int UIItems_JoystickC(int index, int reason)
 					if (TMP_joy[index-8] >= Joybuttons_num) TMP_joy[index-8] = -1;
 				}
 				break;
+			case 20:
+				TMP_deviceid++;
+				if (TMP_deviceid >= 32) TMP_deviceid = 31;
+				break;
+			case 21:
+				JoyLastButton = -1;
+				JoyLastXAxis = 0;
+				JoyLastYAxis = 0;
+				JoyLastHat = 0;
+				UIMenu_RealTimeMessage(JoyTestButtons);
+				break;
 		}
 	}
 	if (JoyAllowDisable) UIMenu_ChangeItem(UIItems_Joystick, 2, "Enable Joystick: %s", TMP_enable ? "Yes" : "No");
 	else UIMenu_ChangeItem(UIItems_Joystick, 2, "Enable Joystick: Yes");
 	UIMenu_ChangeItem(UIItems_Joystick, 3, "Axis as D-Pad: %s", TMP_axis_dpad ? "Yes" : "No");
 	UIMenu_ChangeItem(UIItems_Joystick, 4, "Hats as D-Pad: %s", TMP_hats_dpad ? "Yes" : "No");
+	UIMenu_ChangeItem(UIItems_Joystick, 20, "Device Index: %i", TMP_deviceid);
 	if (Joybuttons_names) {
 		for (i=0; i<10; i++) {
 			if (Joybuttons_names[TMP_joy[i]+1]) UIMenu_ChangeItem(UIItems_Joystick, i+8, "%s Key: %s", PM_Keys[i], Joybuttons_names[TMP_joy[i]+1]);
@@ -190,16 +245,30 @@ void JoystickEnterMenu(void)
 	UIMenu_LoadItems(UIItems_Joystick, 0);
 }
 
+// Register callback of when the joystick configs get updated
+void JoystickUpdateCallback(TJoystickUpdateCB cb)
+{
+	JoystickUpdateCB = cb;
+	if (JoystickUpdateCB) JoystickUpdateCB(CommandLine.joyenabled, CommandLine.joyid);
+}
+
 // Process joystick buttons packed in bits
 void JoystickBitsEvent(uint32_t pressbits)
 {
 	static uint32_t lastpressbits;
 	uint32_t maskbit, togglebits = pressbits ^ lastpressbits;
-	int index, joybutton;
+	int index, joybutton, pressed;
 
 	if (!CommandLine.joyenabled && JoyAllowDisable) {
 		lastpressbits = pressbits;
 		return;
+	}
+
+	if (JoyTestMode) {
+		pressed = pressbits & togglebits;
+		for (index=0; index<32; index++) {
+			if (pressed & (1 << index)) JoyLastButton = index;
+		}
 	}
 
 	for (index=0; index<10; index++) {
@@ -226,6 +295,8 @@ void JoystickButtonsEvent(int button, int pressed)
 
 	if (!CommandLine.joyenabled && JoyAllowDisable) return;
 
+	if (pressed) JoyLastButton = button;
+
 	for (index=0; index<10; index++) {
 		if (CommandLine.joybutton[index] == button) {
 			if (index) {
@@ -248,6 +319,9 @@ void JoystickAxisEvent(int axis, int value)
 		lastaxis0value = 0;
 		return;
 	}
+
+	if (axis) JoyLastYAxis = value;
+	else JoyLastXAxis = value;
 
 	if (CommandLine.joyaxis_dpad) {
 		if (axis) {
@@ -293,19 +367,19 @@ void JoystickHatsEvent(int hatsbitfield)
 
 	if (CommandLine.joyhats_dpad) {
 		if (HAT_ONCHANGE(JHAT_LEFT)) {
-			if (HAT_ONPRESS(JHAT_LEFT)) UIMenu_KeyEvent(MINX_KEY_LEFT, 1);
+			if (HAT_ONPRESS(JHAT_LEFT)) { UIMenu_KeyEvent(MINX_KEY_LEFT, 1); JoyLastHat = 0; }
 			if (HAT_ONRELEASE(JHAT_LEFT)) UIMenu_KeyEvent(MINX_KEY_LEFT, 0);
 		}
 		if (HAT_ONCHANGE(JHAT_RIGHT)) {
-			if (HAT_ONPRESS(JHAT_RIGHT)) UIMenu_KeyEvent(MINX_KEY_RIGHT, 1);
+			if (HAT_ONPRESS(JHAT_RIGHT)) { UIMenu_KeyEvent(MINX_KEY_RIGHT, 1); JoyLastHat = 1; }
 			if (HAT_ONRELEASE(JHAT_RIGHT)) UIMenu_KeyEvent(MINX_KEY_RIGHT, 0);
 		}
 		if (HAT_ONCHANGE(JHAT_UP)) {
-			if (HAT_ONPRESS(JHAT_UP)) UIMenu_KeyEvent(MINX_KEY_UP, 1);
+			if (HAT_ONPRESS(JHAT_UP)) { UIMenu_KeyEvent(MINX_KEY_UP, 1); JoyLastHat = 2; }
 			if (HAT_ONRELEASE(JHAT_UP)) UIMenu_KeyEvent(MINX_KEY_UP, 0);
 		}
 		if (HAT_ONCHANGE(JHAT_DOWN)) {
-			if (HAT_ONPRESS(JHAT_DOWN)) UIMenu_KeyEvent(MINX_KEY_DOWN, 1);
+			if (HAT_ONPRESS(JHAT_DOWN)) { UIMenu_KeyEvent(MINX_KEY_DOWN, 1); JoyLastHat = 3; }
 			if (HAT_ONRELEASE(JHAT_DOWN)) UIMenu_KeyEvent(MINX_KEY_DOWN, 0);
 		}
 	}

@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -43,10 +43,6 @@
 #include <gtk/gtk.h>
 #include "GtkXDialogs.h"
 #include "SGtkXDrawingView.h"
-
-#include "Joystick.h"
-#include "Keyboard.h"
-#include "KeybSDLMap.h"
 
 int ExternalWindow_InConfigs = 0;
 

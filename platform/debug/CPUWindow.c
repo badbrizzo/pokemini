@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -67,17 +67,18 @@ const char *AboutTxt = "PokeMini " PokeMini_Version " Debugger"
 	"IRC EFNET!\n\n"
 	"Please check readme.txt\n\n"
 	"For latest version visit:\n"
-	"http://code.google.com/p/pokemini/\n\n"
-	"Google Play fee donated by MEGA\n"
+	"http://pokemini.sourceforge.net/\n\n"
+	"Special thanks to:\n"
 	"Museum of Electronic Games & Art\n"
 	"http://m-e-g-a.org\n"
 	"MEGA supports preservation\n"
 	"projects of digital art & culture\n";
 
+const char *WebsiteTxt = "http://pokemini.sourceforge.net/";
+
 // Loaded color info file
 char ColorInfoFile[PMTMPV] = {0};
 
-static int FirstROMLoad = 1;
 static int CPUWindow_InConfigs = 0;
 
 GtkWindow *MainWindow;
@@ -103,7 +104,7 @@ static GtkTextBuffer *EditInfoDebugBuf;
 static GtkFrame *StatusFrame;
 static GtkLabel *StatusLabel;
 
-static char *CartridgeIRQVectStr[27] = {
+static const char *CartridgeIRQVectStr[27] = {
 	"Reset Location",
 	"PRC Frame Copy IRQ",
 	"PRC Render IRQ",
@@ -447,7 +448,7 @@ static int ProgramView_resize(SGtkXDrawingView *widg, int width, int height, int
 	newsize = height / 12;
 	if (newsize != widg->total_lines) {
 		widg->total_lines = newsize;
-		sgtkx_drawing_view_sbpage(widg, widg->total_lines, widg->total_lines - 2);
+		sgtkx_drawing_view_sbpage(widg, widg->total_lines - 1, widg->total_lines - 2);
 
 		// Resize table
 		ProgramView_Table = (uint32_t *)realloc(ProgramView_Table, ProgramView.total_lines * sizeof(uint32_t));	
@@ -731,12 +732,33 @@ static int RegistersView_exposure(SGtkXDrawingView *widg, int width, int height,
 	y += 12;
 	sgtkx_drawing_view_drawtext(widg, 4, y, 0x00004C, " F = $%02X,%i", (int)MinxCPU.F, (int)MinxCPU.F);
 	y += 12;
-	sgtkx_drawing_view_drawtext(widg, 4, y, 0x00004C, "\e%sI.D. \e%sI.F. \e%sNib. \e%sBCD",
-	 (MinxCPU.F & 0x80) ? "003" : "766", (MinxCPU.F & 0x40) ? "003" : "766", (MinxCPU.F & 0x20) ? "003" : "766", (MinxCPU.F & 0x10) ? "003" : "766");
-	y += 12;
-	sgtkx_drawing_view_drawtext(widg, 4, y, 0x00004C, "\e%sSign \e%sOvFl \e%sCar. \e%sZe.",
-	 (MinxCPU.F & 0x08) ? "003" : "766", (MinxCPU.F & 0x04) ? "003" : "766", (MinxCPU.F & 0x02) ? "003" : "766", (MinxCPU.F & 0x01) ? "003" : "766");
-	y += 12;
+	if (emumode != EMUMODE_RUNFULL) {
+		sgtkx_drawing_view_drawtext(widg, 4, y, 0x00004C, "\e%sI.D. \e%sI.F. \e%sNib. \e%sBCD",
+		 (MinxCPU.F & 0x80) ? "003" : "766",
+		 (MinxCPU.F & 0x40) ? "003" : "766",
+		 (MinxCPU.F & 0x20) ? "003" : "766",
+		 (MinxCPU.F & 0x10) ? "003" : "766");
+		y += 12;
+		sgtkx_drawing_view_drawtext(widg, 4, y, 0x00004C, "\e%sSign \e%sOvFl \e%sCar. \e%sZe.",
+		 (MinxCPU.F & 0x08) ? "003" : "766",
+		 (MinxCPU.F & 0x04) ? "003" : "766",
+		 (MinxCPU.F & 0x02) ? "003" : "766",
+		 (MinxCPU.F & 0x01) ? "003" : "766");
+		y += 12;
+	} else {
+		sgtkx_drawing_view_drawtext(widg, 4, y, 0x00004C, "\e%sI.D. \e%sI.F. \e%sNib. \e%sBCD",
+		 (MinxCPU.F & 0x80) ? "003" : "433",
+		 (MinxCPU.F & 0x40) ? "003" : "433",
+		 (MinxCPU.F & 0x20) ? "003" : "433",
+		 (MinxCPU.F & 0x10) ? "003" : "433");
+		y += 12;
+		sgtkx_drawing_view_drawtext(widg, 4, y, 0x00004C, "\e%sSign \e%sOvFl \e%sCar. \e%sZe.",
+		 (MinxCPU.F & 0x08) ? "003" : "433",
+		 (MinxCPU.F & 0x04) ? "003" : "433",
+		 (MinxCPU.F & 0x02) ? "003" : "433",
+		 (MinxCPU.F & 0x01) ? "003" : "433");
+		y += 12;
+	}
 	if (MinxCPU.Status == MINX_STATUS_IRQ) {
 		sgtkx_drawing_view_drawtext(widg, 4, y, 0x00004C, "CPU Status: %s $%02X", CPUStatusStr[MinxCPU.Status], MinxCPU.IRQ_Vector);
 	} else sgtkx_drawing_view_drawtext(widg, 4, y, 0x00004C, "CPU Status: %s", CPUStatusStr[MinxCPU.Status]);
@@ -1473,7 +1495,7 @@ GtkXCustomDialog AnyView_AddWPAt_CD[] = {
 
 static GtkXCustomDialog CPUWindow_GotoCartIRQ_CD[] = {
 	{GTKXCD_LABEL, "Go to cartridge IRQ:"},
-	{GTKXCD_COMBO, "", 0, 27, (int)CartridgeIRQVectStr},
+	{GTKXCD_COMBO, "", 0, 27, 0, 0, 0, CartridgeIRQVectStr},
 	{GTKXCD_CHECK, "Decode address from IRQ code", 1},
 	{GTKXCD_EOL, ""}
 };
@@ -1486,7 +1508,7 @@ int AnyView_scroll(SGtkXDrawingView *widg, int value, int min, int max)
 int AnyView_resize(SGtkXDrawingView *widg, int width, int height, int _c)
 {
 	widg->total_lines = height / 12;
-	sgtkx_drawing_view_sbpage(widg, widg->total_lines, widg->total_lines - 2);
+	sgtkx_drawing_view_sbpage(widg, widg->total_lines - 1, widg->total_lines - 2);
 
 	return (emumode == EMUMODE_STOP);
 }
@@ -1552,10 +1574,6 @@ static void Menu_File_OpenMIN(GtkWidget *widget, gpointer data)
 {
 	char tmp[PMTMPV];
 	set_emumode(EMUMODE_STOP, 1);
-	if (FirstROMLoad) {
-		if (strlen(CommandLine.rom_dir)) PokeMini_SetCurrentDir(CommandLine.rom_dir);
-		FirstROMLoad = 0;
-	}
 	if (OpenFileDialogEx(MainWindow, "Open MIN", tmp, CommandLine.min_file, "ZIP Package or MIN Rom (*.zip;*.min)\0*.zip;*.min\0ZIP Package (*.zip)\0*.zip\0MIN Rom (*.min)\0*.min\0All (*.*)\0*.*\0", 0)) {
 		if (!ExtensionCheck(tmp, ".zip") && !ExtensionCheck(tmp, ".min") && !ExtensionCheck(tmp, ".minc")) {
 			if (!YesNoDialog(MainWindow, "File extension should be .zip or .min, continue?", "File Extension", GTK_MESSAGE_QUESTION, NULL)) {
@@ -1946,7 +1964,7 @@ static void Menu_Options_Palette(GtkWidget *widget, gpointer data)
 	int index = (int)data;
 	if (CommandLine.palette != index) {
 		CommandLine.palette = index;
-		PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal);
+		PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 	}
 }
 
@@ -1970,6 +1988,48 @@ static void Menu_Options_LCDFilt(GtkWidget *widget, gpointer data)
 	int index = (int)data;
 	if (CommandLine.lcdfilter != index) {
 		CommandLine.lcdfilter = index;
+		PokeMini_ApplyChanges();
+	}
+}
+
+static void Menu_Options_LCDContrast(GtkWidget *widget, gpointer data)
+{
+	int index = (int)data;
+	GtkWidget *widg;
+	if (CommandLine.lcdcontrast != index) {
+		if (index == -1) {
+			index = CommandLine.lcdcontrast;
+			set_emumode(EMUMODE_STOP, 1);
+			if (!EnterNumberDialog(MainWindow, "LCD Contrast...", "Set percentage of contrast boost:", &index, index, 2, 0, 0, 100)) {
+				widg = gtk_item_factory_get_item(ItemFactory, "/Options/LCD Contrast/Default");
+				gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
+				index = 64;
+			}
+			set_emumode(EMUMODE_RESTORE, 1);
+		}
+		CommandLine.lcdcontrast = index;
+		PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
+		PokeMini_ApplyChanges();
+	}
+}
+
+static void Menu_Options_LCDBright(GtkWidget *widget, gpointer data)
+{
+	int index = (int)data;
+	GtkWidget *widg;
+	if (CommandLine.lcdbright != index) {
+		if (index == -200) {
+			index = CommandLine.lcdbright;
+			set_emumode(EMUMODE_STOP, 1);
+			if (!EnterNumberDialog(MainWindow, "LCD Bright...", "Set percentage of bright offset:", &index, index, 2, 0, -100, 100)) {
+				widg = gtk_item_factory_get_item(ItemFactory, "/Options/LCD Bright/Default");
+				gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
+				index = 0;
+			}
+			set_emumode(EMUMODE_RESTORE, 1);
+		}
+		CommandLine.lcdbright = index;
+		PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 		PokeMini_ApplyChanges();
 	}
 }
@@ -2605,7 +2665,7 @@ static void Menu_Help_Documentation(GtkWidget *widget, gpointer data)
 
 static void Menu_Help_VisitWebsite(GtkWidget *widget, gpointer data)
 {
-	HelpLaunchURL("http://code.google.com/p/pokemini/");
+	HelpLaunchURL(WebsiteTxt);
 }
 
 static void Menu_Help_About(GtkWidget *widget, gpointer data)
@@ -2700,9 +2760,9 @@ TMenu_items_accel Menu_item_accel[] = {
 };
 static GtkItemFactoryEntry CPUWindow_MenuItems[] = {
 	{ "/_File",                              NULL,           NULL,                         0, "<Branch>" },
-	{ "/File/_Open Min...",                  "<CTRL>O",      Menu_File_OpenMIN,            0, "<Item>" },
+	{ "/File/Open _Min...",                  "<CTRL>O",      Menu_File_OpenMIN,            0, "<Item>" },
 	{ "/File/Open _BIOS...",                 "<CTRL>B",      Menu_File_OpenBIOS,           0, "<Item>" },
-	{ "/File/Rel_oad Min",                   "<CTRL><ALT>O", Menu_File_ReloadMIN,          0, "<Item>" },
+	{ "/File/_Reload Min",                   "<CTRL><ALT>O", Menu_File_ReloadMIN,          0, "<Item>" },
 	{ "/File/Use internal _FreeBIOS",        NULL,           Menu_File_FreeBIOS,           0, "<Item>" },
 	{ "/File/Autorun/Disabled",              NULL,           Menu_File_Autorun,            0, "<RadioItem>" },
 	{ "/File/Autorun/Run full speed",        NULL,           Menu_File_Autorun,            1, "/File/Autorun/Disabled" },
@@ -2733,7 +2793,7 @@ static GtkItemFactoryEntry CPUWindow_MenuItems[] = {
 	{ "/File/Capture/Snapshot 1x preview",   NULL,           Menu_Capt_Snapshot1x,         0, "<Item>" },
 	{ "/File/Capture/Snapshot from LCD",     NULL,           Menu_Capt_SnapshotLCD,        0, "<Item>" },
 	{ "/File/Capture/Sound (Start & Stop)",  NULL,           Menu_Capt_Sound,              0, "<Item>" },
-	{ "/File/_Save Min...",                  "<CTRL>S",      Menu_File_SaveMIN,            0, "<Item>" },
+	{ "/File/Save _Min...",                  "<CTRL>S",      Menu_File_SaveMIN,            0, "<Item>" },
 	{ "/File/Save _BIOS...",                 NULL,           Menu_File_SaveBIOS,           0, "<Item>" },
 	{ "/File/sep4",                          NULL,           NULL,                         0, "<Separator>" },
 	{ "/File/_Quit",                         "<CTRL>Q",      Menu_File_Quit,               0, "<Item>" },
@@ -2775,6 +2835,21 @@ static GtkItemFactoryEntry CPUWindow_MenuItems[] = {
 	{ "/Options/LCD Filter/None",            NULL,           Menu_Options_LCDFilt,         0, "<RadioItem>" },
 	{ "/Options/LCD Filter/Dot-Matrix",      NULL,           Menu_Options_LCDFilt,         1, "/Options/LCD Filter/None" },
 	{ "/Options/LCD Filter/50% Scanline",    NULL,           Menu_Options_LCDFilt,         2, "/Options/LCD Filter/None" },
+	{ "/Options/LCD _Contrast",              NULL,           NULL,                         0, "<Branch>" },
+	{ "/Options/LCD Contrast/Default",       NULL,           Menu_Options_LCDContrast,    64, "<RadioItem>" },
+	{ "/Options/LCD Contrast/Lowest",        NULL,           Menu_Options_LCDContrast,     0, "/Options/LCD Contrast/Default" },
+	{ "/Options/LCD Contrast/Low",           NULL,           Menu_Options_LCDContrast,    25, "/Options/LCD Contrast/Default" },
+	{ "/Options/LCD Contrast/Medium",        NULL,           Menu_Options_LCDContrast,    50, "/Options/LCD Contrast/Default" },
+	{ "/Options/LCD Contrast/High",          NULL,           Menu_Options_LCDContrast,    75, "/Options/LCD Contrast/Default" },
+	{ "/Options/LCD Contrast/Highest",       NULL,           Menu_Options_LCDContrast,   100, "/Options/LCD Contrast/Default" },
+	{ "/Options/LCD Contrast/Custom...",     NULL,           Menu_Options_LCDContrast,    -1, "<Item>" },
+	{ "/Options/LCD _Brightness",            NULL,           NULL,                         0, "<Branch>" },
+	{ "/Options/LCD Brightness/Default",     NULL,           Menu_Options_LCDBright,       0, "<RadioItem>" },
+	{ "/Options/LCD Brightness/Lighter",     NULL,           Menu_Options_LCDBright,      24, "/Options/LCD Brightness/Default" },
+	{ "/Options/LCD Brightness/Light",       NULL,           Menu_Options_LCDBright,      12, "/Options/LCD Brightness/Default" },
+	{ "/Options/LCD Brightness/Dark",        NULL,           Menu_Options_LCDBright,     -12, "/Options/LCD Brightness/Default" },
+	{ "/Options/LCD Brightness/Darker",      NULL,           Menu_Options_LCDBright,     -24, "/Options/LCD Brightness/Default" },
+	{ "/Options/LCD Brightness/Custom...",   NULL,           Menu_Options_LCDBright,    -200, "<Item>" },
 	{ "/Options/_Rumble Level",              NULL,           NULL,                         0, "<Branch>" },
 	{ "/Options/Rumble Level/None",          NULL,           Menu_Options_RumbleLvl,       0, "<RadioItem>" },
 	{ "/Options/Rumble Level/Weak",          NULL,           Menu_Options_RumbleLvl,       1, "/Options/Rumble Level/None" },
@@ -2794,9 +2869,6 @@ static GtkItemFactoryEntry CPUWindow_MenuItems[] = {
 	{ "/Options/Sync Cycles/ 16",                   NULL,    Menu_Options_SyncCyc,        16, "/Options/Sync Cycles/  8 (Accurancy)" },
 	{ "/Options/Sync Cycles/ 32",                   NULL,    Menu_Options_SyncCyc,        32, "/Options/Sync Cycles/  8 (Accurancy)" },
 	{ "/Options/Sync Cycles/ 64 (Performance)",     NULL,    Menu_Options_SyncCyc,        64, "/Options/Sync Cycles/  8 (Accurancy)" },
-	{ "/Options/Sync Cycles/128 (Not recommended)", NULL,    Menu_Options_SyncCyc,       128, "/Options/Sync Cycles/  8 (Accurancy)" },
-	{ "/Options/Sync Cycles/256 (Not recommended)", NULL,    Menu_Options_SyncCyc,       256, "/Options/Sync Cycles/  8 (Accurancy)" },
-	{ "/Options/Sync Cycles/512 (Not recommended)", NULL,    Menu_Options_SyncCyc,       512, "/Options/Sync Cycles/  8 (Accurancy)" },
 	{ "/Options/sep3",                       NULL,           NULL,                         0, "<Separator>" },
 	{ "/Options/_Low Battery",               NULL,           Menu_Options_LowBatt,         0, "<CheckItem>" },
 	{ "/Options/_RTC",                       NULL,           NULL,                         0, "<Branch>" },
@@ -2820,14 +2892,14 @@ static GtkItemFactoryEntry CPUWindow_MenuItems[] = {
 	{ "/Options/_Update EEPROM",             NULL,           Menu_Options_UpdEEPROM,       0, "<Item>" },
 
 	{ "/_Debugger",                          NULL,           NULL,                         0, "<Branch>" },
-	{ "/Debugger/Run full speed",            "F5",           Menu_Debug_RunFull,           0, "<Item>" },
-	{ "/Debugger/Run debug frames (Sound)",  "<SHIFT>F5",    Menu_Debug_RunDFrameSnd,      0, "<Item>" },
-	{ "/Debugger/Run debug frames",          "<CTRL>F5",     Menu_Debug_RunDFrame,         0, "<Item>" },
-	{ "/Debugger/Run debug steps",           "<CTRL>F3",     Menu_Debug_RunDStep,          0, "<Item>" },
-	{ "/Debugger/Single frame",              "F4",           Menu_Debug_SingleFrame,       0, "<Item>" },
-	{ "/Debugger/Single step",               "F3",           Menu_Debug_SingleStep,        0, "<Item>" },
-	{ "/Debugger/Step skip",                 "<SHIFT>F3",    Menu_Debug_StepSkip,          0, "<Item>" },
-	{ "/Debugger/Stop",                      "F2",           Menu_Debug_Stop,              0, "<Item>" },
+	{ "/Debugger/_Run full speed",           "F5",           Menu_Debug_RunFull,           0, "<Item>" },
+	{ "/Debugger/Run debug frames (_Sound)", "<SHIFT>F5",    Menu_Debug_RunDFrameSnd,      0, "<Item>" },
+	{ "/Debugger/Run debug _frames",         "<CTRL>F5",     Menu_Debug_RunDFrame,         0, "<Item>" },
+	{ "/Debugger/Run debug _steps",          "<CTRL>F3",     Menu_Debug_RunDStep,          0, "<Item>" },
+	{ "/Debugger/Single _frame",             "F4",           Menu_Debug_SingleFrame,       0, "<Item>" },
+	{ "/Debugger/Single _step",              "F3",           Menu_Debug_SingleStep,        0, "<Item>" },
+	{ "/Debugger/Step s_kip",                "<SHIFT>F3",    Menu_Debug_StepSkip,          0, "<Item>" },
+	{ "/Debugger/_Stop",                     "F2",           Menu_Debug_Stop,              0, "<Item>" },
 	{ "/Debugger/sep1",                      NULL,           NULL,                         0, "<Separator>" },
 	{ "/Debugger/_Physical range",           "<CTRL>P",      Menu_Debug_FullRange,         0, "<CheckItem>" },
 	{ "/Debugger/_Follow PC",                "<CTRL>F",      Menu_Debug_FollowPC,          0, "<CheckItem>" },
@@ -2844,7 +2916,7 @@ static GtkItemFactoryEntry CPUWindow_MenuItems[] = {
 	{ "/Debugger/PRC/Show _Sprites",         NULL,           Menu_DebPRC_ShowSpr,          0, "<CheckItem>" },
 	{ "/Debugger/PRC/Stall _CPU",            NULL,           Menu_DebPRC_StallCPU,         0, "<CheckItem>" },
 	{ "/Debugger/PRC/Stall _Cycles...",      NULL,           Menu_DebPRC_StallCycles,      0, "<Item>" },
-	{ "/Debugger/IRQ call...",               NULL,           Menu_Debug_IRQCall,           0, "<Item>" },
+	{ "/Debugger/_IRQ call...",              NULL,           Menu_Debug_IRQCall,           0, "<Item>" },
 	{ "/Debugger/_Reset",                    NULL,           NULL,                         0, "<Branch>" },
 	{ "/Debugger/Reset/_Soft (Partial)",     "<SHIFT>R",     Menu_Debug_ResetSoft,         0, "<Item>" },
 	{ "/Debugger/Reset/_Hard (Full)",        "<CTRL>R",      Menu_Debug_ResetHard,         0, "<Item>" },
@@ -2889,15 +2961,15 @@ static GtkItemFactoryEntry CPUWindow_MenuItems[] = {
 	{ "/External/sep1",                      NULL,           NULL,                         0, "<Separator>" },
 	{ "/External/Configure...",              NULL,           Menu_External_Conf,           0, "<Item>" },
 
-	{ "/Messages/_Enable messages",          NULL,           NULL,                         0, "<Branch>" },
+	{ "/Messages/Enable _messages",          NULL,           NULL,                         0, "<Branch>" },
 	{ "/Messages/Enable messages/Breakpoints",NULL,          Menu_Messages_BPMsg,          0, "<CheckItem>" },
 	{ "/Messages/Enable messages/Watchpoints",NULL,          Menu_Messages_WPMsg,          0, "<CheckItem>" },
 	{ "/Messages/Enable messages/Exceptions", NULL,          Menu_Messages_ExMsg,          0, "<CheckItem>" },
 	{ "/Messages/Enable messages/HALT break", NULL,          Menu_Messages_HaltMsg,        0, "<CheckItem>" },
 	{ "/Messages/Enable messages/STOP break", NULL,          Menu_Messages_StopMsg,        0, "<CheckItem>" },
 	{ "/Messages/sep1",                      NULL,           NULL,                         0, "<Separator>" },
-	{ "/Messages/Enable debug output",       NULL,           Menu_Messages_EnableDbgOut,   0, "<CheckItem>" },
-	{ "/Messages/Auto-open debug output",    NULL,           Menu_Messages_AutoDbgOut,     0, "<CheckItem>" },
+	{ "/Messages/_Enable debug output",      NULL,           Menu_Messages_EnableDbgOut,   0, "<CheckItem>" },
+	{ "/Messages/_Auto-open debug output",   NULL,           Menu_Messages_AutoDbgOut,     0, "<CheckItem>" },
 	{ "/Messages/sep2",                      NULL,           NULL,                         0, "<Separator>" },
 	{ "/Messages/Clear _messages",           NULL,           Menu_Messages_ClearMsgs,      0, "<Item>" },
 	{ "/Messages/Clear debug _output",       NULL,           Menu_Messages_ClearDebugOut,  0, "<Item>" },
@@ -3222,6 +3294,30 @@ void CPUWindow_UpdateConfigs(void)
 	widg = gtk_item_factory_get_item(ItemFactory, "/Options/LCD Filter/50% Scanline");
 	if (CommandLine.lcdfilter == 2) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
 
+	widg = gtk_item_factory_get_item(ItemFactory, "/Options/LCD Contrast/Default");
+	if (CommandLine.lcdcontrast == 64) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
+	widg = gtk_item_factory_get_item(ItemFactory, "/Options/LCD Contrast/Lowest");
+	if (CommandLine.lcdcontrast == 0) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
+	widg = gtk_item_factory_get_item(ItemFactory, "/Options/LCD Contrast/Low");
+	if (CommandLine.lcdcontrast == 25) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
+	widg = gtk_item_factory_get_item(ItemFactory, "/Options/LCD Contrast/Medium");
+	if (CommandLine.lcdcontrast == 50) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
+	widg = gtk_item_factory_get_item(ItemFactory, "/Options/LCD Contrast/High");
+	if (CommandLine.lcdcontrast == 75) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
+	widg = gtk_item_factory_get_item(ItemFactory, "/Options/LCD Contrast/Highest");
+	if (CommandLine.lcdcontrast == 100) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
+
+	widg = gtk_item_factory_get_item(ItemFactory, "/Options/LCD Brightness/Default");
+	if (CommandLine.lcdbright == 0) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
+	widg = gtk_item_factory_get_item(ItemFactory, "/Options/LCD Brightness/Lighter");
+	if (CommandLine.lcdbright == 24) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
+	widg = gtk_item_factory_get_item(ItemFactory, "/Options/LCD Brightness/Light");
+	if (CommandLine.lcdbright == 12) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
+	widg = gtk_item_factory_get_item(ItemFactory, "/Options/LCD Brightness/Dark");
+	if (CommandLine.lcdbright == -12) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
+	widg = gtk_item_factory_get_item(ItemFactory, "/Options/LCD Brightness/Darker");
+	if (CommandLine.lcdbright == -24) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
+
 	widg = gtk_item_factory_get_item(ItemFactory, "/Options/Rumble Level/None");
 	if (CommandLine.rumblelvl == 0) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
 	widg = gtk_item_factory_get_item(ItemFactory, "/Options/Rumble Level/Weak");
@@ -3250,12 +3346,6 @@ void CPUWindow_UpdateConfigs(void)
 	if (CommandLine.synccycles == 32) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
 	widg = gtk_item_factory_get_item(ItemFactory, "/Options/Sync Cycles/ 64 (Performance)");
 	if (CommandLine.synccycles == 64) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
-	widg = gtk_item_factory_get_item(ItemFactory, "/Options/Sync Cycles/128 (Not recommended)");
-	if (CommandLine.synccycles == 128) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
-	widg = gtk_item_factory_get_item(ItemFactory, "/Options/Sync Cycles/256 (Not recommended)");
-	if (CommandLine.synccycles == 256) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
-	widg = gtk_item_factory_get_item(ItemFactory, "/Options/Sync Cycles/512 (Not recommended)");
-	if (CommandLine.synccycles == 512) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);
 
 	widg = gtk_item_factory_get_item(ItemFactory, "/Options/Piezo Filter");
 	if (CommandLine.piezofilter) gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(widg), 1);

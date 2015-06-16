@@ -24,6 +24,7 @@ int PokeMini_Rumbling = 0;
 int PokeMini_RumblingLatch = 0;
 int PokeMini_EEPROMWritten = 0;
 int PokeMini_BatteryStatus = 0;  // 0 = Full, 1 = Low
+int PokeMini_ShockKey = 0;
 
 uint8_t MinxIO_IODataRead(void);
 void MinxIO_IODataWrite(void);
@@ -62,6 +63,7 @@ void MinxIO_Reset(int hardreset)
 	memset(&MinxIO, 0, sizeof(TMinxIO));
 	PokeMini_Rumbling = 0;
 	PokeMini_RumblingLatch = 0;
+	PokeMini_ShockKey = 0;
 
 	// Init variables
 	PMR_KEY_PAD = 0xFF;
@@ -170,13 +172,13 @@ void MinxIO_Keypad(uint8_t key, int pressed)
 				PMR_KEY_PAD &= ~0x80;
 			} else PMR_KEY_PAD |= 0x80;
 			break;
+		case MINX_KEY_SHOCK:	// Shock key
+			if (!PokeMini_ShockKey && pressed) {
+				MinxCPU_OnIRQAct(MINX_INTR_10);
+			}
+			PokeMini_ShockKey = pressed;
+			break;
 	}
-}
-
-void MinxIO_Shock(void)
-{
-	if (!EEPROM) return;
-	MinxCPU_OnIRQAct(MINX_INTR_10);
 }
 
 void MinxIO_BatteryLow(int low)

@@ -29,10 +29,9 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_POKEMINI            ICON                    "PokeMini.ico"
-IDI_SMALL               ICON                    "small.ico"
-IDI_MINFILE             ICON                    "Min1Cartridge.ico"
-IDI_MINCFILE            ICON                    "Min2Cartridge.ico"
+IDI_ICON1               ICON                    "Icon_PkBl_48.ico"
+IDI_ICON2               ICON                    "Icon_Min1_48.ico"
+IDI_ICON3               ICON                    "Icon_Min2_48.ico"
 
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
@@ -138,6 +137,25 @@ BEGIN
             MENUITEM "None",                        ID_LCDFILTER_NONE
             MENUITEM "Dot-Matrix / High",           ID_LCDFILTER_MATRIX
             MENUITEM "50% Scanline",                ID_LCDFILTER_SCANLINE
+        END
+        POPUP "LCD Contrast"
+        BEGIN
+            MENUITEM "Default",                     ID_LCDCONTRAST_DEFAULT
+            MENUITEM "Lowest",                      ID_LCDCONTRAST_LOWEST
+            MENUITEM "Low",                         ID_LCDCONTRAST_LOW
+            MENUITEM "Medium",                      ID_LCDCONTRAST_MEDIUM
+            MENUITEM "High",                        ID_LCDCONTRAST_HIGH
+            MENUITEM "Highest",                     ID_LCDCONTRAST_HIGHEST
+            MENUITEM "Custom...",                   ID_LCDCONTRAST_CUSTOM
+        END
+        POPUP "LCD Brightness"
+        BEGIN
+            MENUITEM "Default",                     ID_LCDBRIGHT_DEFAULT
+            MENUITEM "Lighter",                     ID_LCDBRIGHT_LIGHTER
+            MENUITEM "Light",                       ID_LCDBRIGHT_LIGHT
+            MENUITEM "Dark",                        ID_LCDBRIGHT_DARK
+            MENUITEM "Darker",                      ID_LCDBRIGHT_DARKER
+            MENUITEM "Custom...",                   ID_LCDBRIGHT_CUSTOM
         END
         POPUP "Rumble Level"
         BEGIN
@@ -385,6 +403,17 @@ BEGIN
     CTEXT           "Blue: 255",IDC_CUSTOM2DARKBL,123,286,58,16
 END
 
+IDD_CUSTOMSLIDER DIALOGEX 0, 0, 186, 49
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Set custom value..."
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,75,28,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,129,28,50,14
+    CONTROL         "",IDC_CUSTOMSLIDER,"msctls_trackbar32",TBS_BOTH | TBS_NOTICKS | WS_TABSTOP,7,7,172,15
+    CTEXT           "Value: 0",IDC_CUSTOMSLIDERT,7,26,58,16
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -416,6 +445,14 @@ BEGIN
         RIGHTMARGIN, 181
         TOPMARGIN, 7
         BOTTOMMARGIN, 323
+    END
+
+    IDD_CUSTOMSLIDER, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 179
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 42
     END
 END
 #endif    // APSTUDIO_INVOKED

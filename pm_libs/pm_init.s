@@ -1,4 +1,4 @@
-; Copyright (C) 2012 by JustBurn
+; Copyright (C) 2015 by JustBurn
 ;
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
@@ -19,8 +19,8 @@
 ; THE SOFTWARE.
 
 	; Pokemon-Mini definitions
-	; Version 3
-.equ	PMINIT_VER	3
+	; Version 5
+.equ	PMINIT_VER	5
 
 	; Flags
 .equ	FLAG_Z		$01
@@ -46,9 +46,24 @@
 .equ	MAP_BASE	$1360
 .equ	MAP		$1360
 .equ	TILEMAP		$1360
-.equ	RAM_BASE	$1500
-.equ	RAM		$1500
 
+	; RAM defines
+.ifndef PM_STARTRAM
+.equ	PM_STARTRAM	$14E0	; Map up to 24x16
+.endif
+.if PM_STARTRAM < $1000
+.error "Invalid PM_STARTRAM value, too small"
+.endif
+.if PM_STARTRAM >= $2000
+.error "Invalid PM_STARTRAM value, too big"
+.endif
+
+.equ	PMINIT_RAND	(PM_STARTRAM + 0)
+.equ	PMINIT_KEYPAD	(PM_STARTRAM + 2)
+.equ	PMINIT_FRAMECNT	(PM_STARTRAM + 3)
+.equ	RAM		(PM_STARTRAM + 4)
+.equ	RAM_BASE	(PM_STARTRAM + 4)
+.equ	RAM_SIZE	($2000 - RAM_BASE)
 .option	ram_base	RAM_BASE
 .option symoutput	1
 
@@ -182,9 +197,9 @@
 .equ	POKEMINI_SINTW	$D6
 .equ	POKEMINI_SINTWL	$D6
 .equ	POKEMINI_SINTWH	$D7
-.equ	POKEMINI_FX8	$DE
-.equ	POKEMINI_FX8L	$DE
-.equ	POKEMINI_FX8H	$DF
+.equ	POKEMINI_FX8_8	$DE
+.equ	POKEMINI_FX8_8L	$DE
+.equ	POKEMINI_FX8_8H	$DF
 
 	; Color interface
 .equ	COLORPM_CMD	$F0
@@ -215,6 +230,8 @@
 
 .equ	SEC_ENABLE		$01	; n+SEC_CTRL
 .equ	SEC_RESET		$02
+
+.equ	LOW_BATTERY		$20	; n+SYS_BATT
 
 .equ	TMR256_ENABLE		$01	; n+TMR256_CNT
 .equ	TMR256_RESET		$02
@@ -598,246 +615,246 @@
 	; --------------
 	; Helpful Macros
 
-.macroicase FJMP offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	jmp ((offset & $7FFF) | $8000)
+.macroicase FJMP pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	jmp ((pmpar_offset & $7FFF) | $8000)
  .else
-	jmp offset
+	jmp pmpar_offset
  .endif
 .endm
 
-.macroicase FJC offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	jc ((offset & $7FFF) | $8000)
+.macroicase FJC pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	jc ((pmpar_offset & $7FFF) | $8000)
  .else
-	jc offset
+	jc pmpar_offset
  .endif
 .endm
 
-.macroicase FJNC offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	jnc ((offset & $7FFF) | $8000)
+.macroicase FJNC pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	jnc ((pmpar_offset & $7FFF) | $8000)
  .else
-	jnc offset
+	jnc pmpar_offset
  .endif
 .endm
 
-.macroicase FJZ offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	jz ((offset & $7FFF) | $8000)
+.macroicase FJZ pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	jz ((pmpar_offset & $7FFF) | $8000)
  .else
-	jz offset
+	jz pmpar_offset
  .endif
 .endm
 
-.macroicase FJNZ offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	jnz ((offset & $7FFF) | $8000)
+.macroicase FJNZ pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	jnz ((pmpar_offset & $7FFF) | $8000)
  .else
-	jnz offset
+	jnz pmpar_offset
  .endif
 .endm
 
-.macroicase FJDBNZ offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	jdbnz ((offset & $7FFF) | $8000)
+.macroicase FJDBNZ pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	jdbnz ((pmpar_offset & $7FFF) | $8000)
  .else
-	jdbnz offset
+	jdbnz pmpar_offset
  .endif
 .endm
 
-.macroicase FJL offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	jl ((offset & $7FFF) | $8000)
+.macroicase FJL pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	jl ((pmpar_offset & $7FFF) | $8000)
  .else
-	jl offset
+	jl pmpar_offset
  .endif
 .endm
 
-.macroicase FJLE offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	jle ((offset & $7FFF) | $8000)
+.macroicase FJLE pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	jle ((pmpar_offset & $7FFF) | $8000)
  .else
-	jle offset
+	jle pmpar_offset
  .endif
 .endm
 
-.macroicase FJG offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	jg ((offset & $7FFF) | $8000)
+.macroicase FJG pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	jg ((pmpar_offset & $7FFF) | $8000)
  .else
-	jg offset
+	jg pmpar_offset
  .endif
 .endm
 
-.macroicase FJGE offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	jge ((offset & $7FFF) | $8000)
+.macroicase FJGE pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	jge ((pmpar_offset & $7FFF) | $8000)
  .else
-	jge offset
+	jge pmpar_offset
  .endif
 .endm
 
-.macroicase FJO offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	jo ((offset & $7FFF) | $8000)
+.macroicase FJO pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	jo ((pmpar_offset & $7FFF) | $8000)
  .else
-	jo offset
+	jo pmpar_offset
  .endif
 .endm
 
-.macroicase FJNO offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	jno ((offset & $7FFF) | $8000)
+.macroicase FJNO pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	jno ((pmpar_offset & $7FFF) | $8000)
  .else
-	jno offset
+	jno pmpar_offset
  .endif
 .endm
 
-.macroicase FJNS offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	jns ((offset & $7FFF) | $8000)
+.macroicase FJNS pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	jns ((pmpar_offset & $7FFF) | $8000)
  .else
-	jns offset
+	jns pmpar_offset
  .endif
 .endm
 
-.macroicase FJS offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	js ((offset & $7FFF) | $8000)
+.macroicase FJS pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	js ((pmpar_offset & $7FFF) | $8000)
  .else
-	js offset
+	js pmpar_offset
  .endif
 .endm
 
-.macroicase FCALL offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	call ((offset & $7FFF) | $8000)
+.macroicase FCALL pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	call ((pmpar_offset & $7FFF) | $8000)
  .else
-	call offset
+	call pmpar_offset
  .endif
 .endm
 
-.macroicase FCALLC offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	callc ((offset & $7FFF) | $8000)
+.macroicase FCALLC pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	callc ((pmpar_offset & $7FFF) | $8000)
  .else
-	callc offset
+	callc pmpar_offset
  .endif
 .endm
 
-.macroicase FCALLNC offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	callnc ((offset & $7FFF) | $8000)
+.macroicase FCALLNC pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	callnc ((pmpar_offset & $7FFF) | $8000)
  .else
-	callnc offset
+	callnc pmpar_offset
  .endif
 .endm
 
-.macroicase FCALLZ offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	callz ((offset & $7FFF) | $8000)
+.macroicase FCALLZ pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	callz ((pmpar_offset & $7FFF) | $8000)
  .else
-	callz offset
+	callz pmpar_offset
  .endif
 .endm
 
-.macroicase FCALLNZ offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	callnz ((offset & $7FFF) | $8000)
+.macroicase FCALLNZ pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	callnz ((pmpar_offset & $7FFF) | $8000)
  .else
-	callnz offset
+	callnz pmpar_offset
  .endif
 .endm
 
-.macroicase FCALLL offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	calll ((offset & $7FFF) | $8000)
+.macroicase FCALLL pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	calll ((pmpar_offset & $7FFF) | $8000)
  .else
-	calll offset
+	calll pmpar_offset
  .endif
 .endm
 
-.macroicase FCALLLE offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	callle ((offset & $7FFF) | $8000)
+.macroicase FCALLLE pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	callle ((pmpar_offset & $7FFF) | $8000)
  .else
-	callle offset
+	callle pmpar_offset
  .endif
 .endm
 
-.macroicase FCALLG offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	callg ((offset & $7FFF) | $8000)
+.macroicase FCALLG pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	callg ((pmpar_offset & $7FFF) | $8000)
  .else
-	callg offset
+	callg pmpar_offset
  .endif
 .endm
 
-.macroicase FCALLGE offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	callge ((offset & $7FFF) | $8000)
+.macroicase FCALLGE pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	callge ((pmpar_offset & $7FFF) | $8000)
  .else
-	callge offset
+	callge pmpar_offset
  .endif
 .endm
 
-.macroicase FCALLO offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	callo ((offset & $7FFF) | $8000)
+.macroicase FCALLO pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	callo ((pmpar_offset & $7FFF) | $8000)
  .else
-	callo offset
+	callo pmpar_offset
  .endif
 .endm
 
-.macroicase FCALLNO offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	callno ((offset & $7FFF) | $8000)
+.macroicase FCALLNO pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	callno ((pmpar_offset & $7FFF) | $8000)
  .else
-	callno offset
+	callno pmpar_offset
  .endif
 .endm
 
-.macroicase FCALLNS offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	callns ((offset & $7FFF) | $8000)
+.macroicase FCALLNS pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	callns ((pmpar_offset & $7FFF) | $8000)
  .else
-	callns offset
+	callns pmpar_offset
  .endif
 .endm
 
-.macroicase FCALLS offset
- .if offset >= $8000
-	mov u, (offset >> 15)
-	calls ((offset & $7FFF) | $8000)
+.macroicase FCALLS pmpar_offset
+ .if pmpar_offset >= $8000
+	mov u, (pmpar_offset >> 15)
+	calls ((pmpar_offset & $7FFF) | $8000)
  .else
-	calls offset
+	calls pmpar_offset
  .endif
 .endm
 
@@ -845,11 +862,56 @@
 	and f, $CF
 .endm
 
-.macroicase PM_ROMINFO
+.macroicase SET_F pmpar_flags
+	or f, pmpar_flags
+.endm
+
+.macroicase CLEAR_F pmpar_flags
+	and f, ~pmpar_flags
+.endm
+
+.macroicase PM_ALIGN_MAP
+ .org (. + 7) & ~7
+.endm
+
+.macroicase PM_ALIGN_TILES
+ .org (. + 7) & ~7
+.endm
+
+.macroicase PM_ALIGN_BG
+ .org (. + 7) & ~7
+.endm
+
+.macroicase PM_ALIGN_BACKGROUND
+ .org (. + 7) & ~7
+.endm
+
+.macroicase PM_ALIGN_SPR
+ .org (. + 63) & ~63
+.endm
+
+.macroicase PM_ALIGN_OAM
+ .org (. + 63) & ~63
+.endm
+
+.macroicase PM_ALIGN_SPRITES
+ .org (. + 63) & ~63
+.endm
+
+.macroicase PM_CODEINFO
  .printf "Code size: %i Bytes\n", (. - ROM_BASE)
- .printf "Code banks: %i Bank(s)\n", (. + 32767) / 32768
+.endm
+
+.macroicase PM_DATAINFO
+ .printf "ROM size: %i Bytes\n", (.)
+ .printf "ROM banks: %i Bank(s)\n", (. + 32767) / 32768
  .printf "RAM size: %i Bytes\n", (__RAMBASE__ - RAM_BASE)
- .printf "RAM usage: %i%%\n", (__RAMBASE__ - RAM_BASE) * 100 / 2816
+ .printf "RAM usage: %i%%\n", (__RAMBASE__ - RAM_BASE) * 100 / RAM_SIZE
+.endm
+
+.macroicase PM_ROMINFO
+ .printf "ROM size: %i Bytes\n", (.)
+ .printf "ROM banks: %i Bank(s)\n", (. + 32767) / 32768
 .endm
 
 .macroicase COLORPM_INIT
@@ -903,60 +965,64 @@
 .define IRQF_NORIRQ	$02
 .define IRQF_NOSTARTUP	$04
 
-.macroicase RIRQ irq_select
+.macroicase RIRQ pmpar_irq_select
 	push hl
- .if (irq_select == IRQ_PRC_COPY)
+ .if (pmpar_irq_select == IRQ_PRC_COPY)
 	mov l, $00
- .elif (irq_select == IRQ_PRC_DIV)
+ .elif (pmpar_irq_select == IRQ_PRC_DIV)
 	mov l, $02
- .elif (irq_select == IRQ_TMR2_HI)
+ .elif (pmpar_irq_select == IRQ_TMR2_HI)
 	mov l, $04
- .elif (irq_select == IRQ_TMR2_LO)
+ .elif (pmpar_irq_select == IRQ_TMR2_LO)
 	mov l, $06
- .elif (irq_select == IRQ_TMR1_HI)
+ .elif (pmpar_irq_select == IRQ_TMR1_HI)
 	mov l, $08
- .elif (irq_select == IRQ_TMR1_LO)
+ .elif (pmpar_irq_select == IRQ_TMR1_LO)
 	mov l, $0A
- .elif (irq_select == IRQ_TMR3_HI)
+ .elif (pmpar_irq_select == IRQ_TMR3_HI)
 	mov l, $0C
- .elif (irq_select == IRQ_TMR3_PVT)
+ .elif (pmpar_irq_select == IRQ_TMR3_PVT)
 	mov l, $0E
- .elif (irq_select == IRQ_32HZ)
+ .elif (pmpar_irq_select == IRQ_32HZ)
 	mov l, $10
- .elif (irq_select == IRQ_8HZ)
+ .elif (pmpar_irq_select == IRQ_8HZ)
 	mov l, $12
- .elif (irq_select == IRQ_2HZ)
+ .elif (pmpar_irq_select == IRQ_2HZ)
 	mov l, $14
- .elif (irq_select == IRQ_1HZ)
+ .elif (pmpar_irq_select == IRQ_1HZ)
 	mov l, $16
- .elif (irq_select == IRQ_IR_RX)
+ .elif (pmpar_irq_select == IRQ_IR_RX)
 	mov l, $18
- .elif (irq_select == IRQ_SHOCK)
+ .elif (pmpar_irq_select == IRQ_SHOCK)
 	mov l, $1A
- .elif (irq_select == IRQ_UNKNOWN)
+ .elif (pmpar_irq_select == IRQ_UNKNOWN)
 	mov l, $1C
- .elif (irq_select == IRQ_CARTRIDGE)
+ .elif (pmpar_irq_select == IRQ_CARTRIDGE)
 	mov l, $1E
- .elif (irq_select == IRQ_KEY_POWER)
+ .elif (pmpar_irq_select == IRQ_KEY_POWER)
 	mov l, $20
- .elif (irq_select == IRQ_KEY_RIGHT)
+ .elif (pmpar_irq_select == IRQ_KEY_RIGHT)
 	mov l, $22
- .elif (irq_select == IRQ_KEY_LEFT)
+ .elif (pmpar_irq_select == IRQ_KEY_LEFT)
 	mov l, $24
- .elif (irq_select == IRQ_KEY_DOWN)
+ .elif (pmpar_irq_select == IRQ_KEY_DOWN)
 	mov l, $26
- .elif (irq_select == IRQ_KEY_UP)
+ .elif (pmpar_irq_select == IRQ_KEY_UP)
 	mov l, $28
- .elif (irq_select == IRQ_KEY_C)
+ .elif (pmpar_irq_select == IRQ_KEY_C)
 	mov l, $2A
- .elif (irq_select == IRQ_KEY_B)
+ .elif (pmpar_irq_select == IRQ_KEY_B)
 	mov l, $2C
- .elif (irq_select == IRQ_KEY_A)
+ .elif (pmpar_irq_select == IRQ_KEY_A)
 	mov l, $2E
  .else
   .error "Unsupported IRQ value in rirq macro"
  .endif
+ .if (pmpar_irq_select == IRQ_PRC_DIV)
+	jmp rirq_handle_prcdiv
+ .else
 	jmp rirq_handle
+ .endif
 .endm
 
 .macroicase DISABLE_MIRQ
@@ -967,95 +1033,79 @@
 	and f, $BF
 .endm
 
-.macroicase PM_ALIGN_MAP
- .org (. + 7) & ~7
-.endm
-
-.macroicase PM_ALIGN_TILES
- .org (. + 7) & ~7
-.endm
-
-.macroicase PM_ALIGN_SPR
- .org (. + 63) & ~63
-.endm
-
-.macroicase PM_ALIGN_OAM
- .org (. + 63) & ~63
-.endm
-
-.macroicase PRIORITY_IRQS priority, irqs_select
- .if ((priority < 0) && (priority > 3))
+.macroicase PRIORITY_IRQS pmpar_priority, pmpar_irqs_select
+ .if ((pmpar_priority < 0) && (pmpar_priority > 3))
   .error "Priority must be between 0 and 3"
  .endif
  .set priority_irqs___enable1 0
  .set priority_irqs___enable2 0
  .set priority_irqs___enable3 0
  .set priority_irqs___enable4 0
- .if (irqs_select & (IRQ_PRC_COPY | IRQ_PRC_DIV))
+ .if (pmpar_irqs_select & (IRQ_PRC_COPY | IRQ_PRC_DIV))
   .set priority_irqs___enable1 priority_irqs___enable1+IRQ_PRI1_PRC
  .endif
- .if (irqs_select & (IRQ_TMR2_HI | IRQ_TMR2_LO))
+ .if (pmpar_irqs_select & (IRQ_TMR2_HI | IRQ_TMR2_LO))
   .set priority_irqs___enable1 priority_irqs___enable1+IRQ_PRI1_TMR2
  .endif
- .if (irqs_select & (IRQ_TMR1_HI | IRQ_TMR1_LO))
+ .if (pmpar_irqs_select & (IRQ_TMR1_HI | IRQ_TMR1_LO))
   .set priority_irqs___enable1 priority_irqs___enable1+IRQ_PRI1_TMR1
  .endif
- .if (irqs_select & (IRQ_TMR3_HI | IRQ_TMR3_PVT))
+ .if (pmpar_irqs_select & (IRQ_TMR3_HI | IRQ_TMR3_PVT))
   .set priority_irqs___enable1 priority_irqs___enable1+IRQ_PRI1_TMR3
  .endif
- .if (irqs_select & (IRQ_32HZ | IRQ_8HZ | IRQ_2HZ | IRQ_1HZ))
+ .if (pmpar_irqs_select & (IRQ_32HZ | IRQ_8HZ | IRQ_2HZ | IRQ_1HZ))
   .set priority_irqs___enable2 priority_irqs___enable2+IRQ_PRI2_TMR256
  .endif
- .if (irqs_select & (IRQ_IR_RX | IRQ_SHOCK))
+ .if (pmpar_irqs_select & (IRQ_IR_RX | IRQ_SHOCK))
   .set priority_irqs___enable3 priority_irqs___enable3+IRQ_PRI3_IO
  .endif
- .if (irqs_select & IRQ_UNKNOWN)
+ .if (pmpar_irqs_select & IRQ_UNKNOWN)
   .set priority_irqs___enable2 priority_irqs___enable2+IRQ_PRI2_UNKNOWN
  .endif
- .if (irqs_select & IRQ_CARTRIDGE)
+ .if (pmpar_irqs_select & IRQ_CARTRIDGE)
   .set priority_irqs___enable2 priority_irqs___enable2+IRQ_PRI2_CARTRIDGE
  .endif
- .if (irqs_select & (IRQ_KEY_POWER | IRQ_KEY_RIGHT | IRQ_KEY_LEFT | IRQ_KEY_DOWN | IRQ_KEY_UP | IRQ_KEY_C | IRQ_KEY_B | IRQ_KEY_A))
+ .if (pmpar_irqs_select & (IRQ_KEY_POWER | IRQ_KEY_RIGHT | IRQ_KEY_LEFT | IRQ_KEY_DOWN | IRQ_KEY_UP | IRQ_KEY_C | IRQ_KEY_B | IRQ_KEY_A))
   .set priority_irqs___enable2 priority_irqs___enable2+IRQ_PRI2_KEY_PAD
  .endif
  .if (priority_irqs___enable1 != 0)
-  .if (priority == 0)
+  .if (pmpar_priority == 0)
 	and [n+IRQ_PRI1], ~priority_irqs___enable1
-  .elif (priority == 3)
+  .elif (pmpar_priority == 3)
 	or [n+IRQ_PRI1], priority_irqs___enable1
   .else
 	and [n+IRQ_PRI1], ~priority_irqs___enable1
-	or [n+IRQ_PRI1], (priority_irqs___enable1 & 0x55) * priority
+	or [n+IRQ_PRI1], (priority_irqs___enable1 & 0x55) * pmpar_priority
   .endif
  .endif
  .if (priority_irqs___enable2 != 0)
-  .if (priority == 0)
+  .if (pmpar_priority == 0)
 	and [n+IRQ_PRI2], ~priority_irqs___enable2
-  .elif (priority == 3)
+  .elif (pmpar_priority == 3)
 	or [n+IRQ_PRI2], priority_irqs___enable2
   .else
 	and [n+IRQ_PRI2], ~priority_irqs___enable2
-	or [n+IRQ_PRI2], (priority_irqs___enable2 & 0x55) * priority
+	or [n+IRQ_PRI2], (priority_irqs___enable2 & 0x55) * pmpar_priority
   .endif
  .endif
  .if (priority_irqs___enable3 != 0)
-  .if (priority == 0)
+  .if (pmpar_priority == 0)
 	and [n+IRQ_PRI3], ~priority_irqs___enable3
-  .elif (priority == 3)
+  .elif (pmpar_priority == 3)
 	or [n+IRQ_PRI3], priority_irqs___enable3
   .else
 	and [n+IRQ_PRI3], ~priority_irqs___enable3
-	or [n+IRQ_PRI3], (priority_irqs___enable3 & 0x55) * priority
+	or [n+IRQ_PRI3], (priority_irqs___enable3 & 0x55) * pmpar_priority
   .endif
  .endif
  .if (priority_irqs___enable4 != 0)
-  .if (priority == 0)
+  .if (pmpar_priority == 0)
 	and [n+IRQ_PRI4], ~priority_irqs___enable4
-  .elif (priority == 3)
+  .elif (pmpar_priority == 3)
 	or [n+IRQ_PRI4], priority_irqs___enable4
   .else
 	and [n+IRQ_PRI4], ~priority_irqs___enable4
-	or [n+IRQ_PRI4], (priority_irqs___enable4 & 0x55) * priority
+	or [n+IRQ_PRI4], (priority_irqs___enable4 & 0x55) * pmpar_priority
   .endif
  .endif
  .unset priority_irqs___enable1
@@ -1064,81 +1114,81 @@
  .unset priority_irqs___enable4
 .endm
 
-.macroicase ENABLE_IRQS irqs_select
+.macroicase ENABLE_IRQS pmpar_irqs_select
  .set enable_irqs___enable1 0
  .set enable_irqs___enable2 0
  .set enable_irqs___enable3 0
  .set enable_irqs___enable4 0
- .if (irqs_select & IRQ_PRC_COPY)
+ .if (pmpar_irqs_select & IRQ_PRC_COPY)
   .set enable_irqs___enable1 enable_irqs___enable1+IRQ_ENA1_PRC_COPY
  .endif
- .if (irqs_select & IRQ_PRC_DIV)
+ .if (pmpar_irqs_select & IRQ_PRC_DIV)
   .set enable_irqs___enable1 enable_irqs___enable1+IRQ_ENA1_PRC_DIV
  .endif
- .if (irqs_select & IRQ_TMR2_HI)
+ .if (pmpar_irqs_select & IRQ_TMR2_HI)
   .set enable_irqs___enable1 enable_irqs___enable1+IRQ_ENA1_TMR2_HI
  .endif
- .if (irqs_select & IRQ_TMR2_LO)
+ .if (pmpar_irqs_select & IRQ_TMR2_LO)
   .set enable_irqs___enable1 enable_irqs___enable1+IRQ_ENA1_TMR2_LO
  .endif
- .if (irqs_select & IRQ_TMR1_HI)
+ .if (pmpar_irqs_select & IRQ_TMR1_HI)
   .set enable_irqs___enable1 enable_irqs___enable1+IRQ_ENA1_TMR1_HI
  .endif
- .if (irqs_select & IRQ_TMR1_LO)
+ .if (pmpar_irqs_select & IRQ_TMR1_LO)
   .set enable_irqs___enable1 enable_irqs___enable1+IRQ_ENA1_TMR1_LO
  .endif
- .if (irqs_select & IRQ_TMR3_HI)
+ .if (pmpar_irqs_select & IRQ_TMR3_HI)
   .set enable_irqs___enable1 enable_irqs___enable1+IRQ_ENA1_TMR3_HI
  .endif
- .if (irqs_select & IRQ_TMR3_PVT)
+ .if (pmpar_irqs_select & IRQ_TMR3_PVT)
   .set enable_irqs___enable1 enable_irqs___enable1+IRQ_ENA1_TMR3_PVT
  .endif
- .if (irqs_select & IRQ_32HZ)
+ .if (pmpar_irqs_select & IRQ_32HZ)
   .set enable_irqs___enable2 enable_irqs___enable2+IRQ_ENA2_32HZ
  .endif
- .if (irqs_select & IRQ_8HZ)
+ .if (pmpar_irqs_select & IRQ_8HZ)
   .set enable_irqs___enable2 enable_irqs___enable2+IRQ_ENA2_8HZ
  .endif
- .if (irqs_select & IRQ_2HZ)
+ .if (pmpar_irqs_select & IRQ_2HZ)
   .set enable_irqs___enable2 enable_irqs___enable2+IRQ_ENA2_2HZ
  .endif
- .if (irqs_select & IRQ_1HZ)
+ .if (pmpar_irqs_select & IRQ_1HZ)
   .set enable_irqs___enable2 enable_irqs___enable2+IRQ_ENA2_1HZ
  .endif
- .if (irqs_select & IRQ_IR_RX)
+ .if (pmpar_irqs_select & IRQ_IR_RX)
   .set enable_irqs___enable4 enable_irqs___enable4+IRQ_ENA4_IR_RX
  .endif
- .if (irqs_select & IRQ_SHOCK)
+ .if (pmpar_irqs_select & IRQ_SHOCK)
   .set enable_irqs___enable4 enable_irqs___enable4+IRQ_ENA4_SHOCK
  .endif
- .if (irqs_select & IRQ_UNKNOWN)
+ .if (pmpar_irqs_select & IRQ_UNKNOWN)
   .set enable_irqs___enable4 enable_irqs___enable4+IRQ_ENA4_UNKNOWN1+IRQ_ENA4_UNKNOWN2+IRQ_ENA4_UNKNOWN3
  .endif
- .if (irqs_select & IRQ_CARTRIDGE)
+ .if (pmpar_irqs_select & IRQ_CARTRIDGE)
   .set enable_irqs___enable2 enable_irqs___enable2+IRQ_ENA2_CARTRIDGE
  .endif
- .if (irqs_select & IRQ_KEY_POWER)
+ .if (pmpar_irqs_select & IRQ_KEY_POWER)
   .set enable_irqs___enable3 enable_irqs___enable3+IRQ_ENA3_KEY_POWER
  .endif
- .if (irqs_select & IRQ_KEY_RIGHT)
+ .if (pmpar_irqs_select & IRQ_KEY_RIGHT)
   .set enable_irqs___enable3 enable_irqs___enable3+IRQ_ENA3_KEY_RIGHT
  .endif
- .if (irqs_select & IRQ_KEY_LEFT)
+ .if (pmpar_irqs_select & IRQ_KEY_LEFT)
   .set enable_irqs___enable3 enable_irqs___enable3+IRQ_ENA3_KEY_LEFT
  .endif
- .if (irqs_select & IRQ_KEY_DOWN)
+ .if (pmpar_irqs_select & IRQ_KEY_DOWN)
   .set enable_irqs___enable3 enable_irqs___enable3+IRQ_ENA3_KEY_DOWN
  .endif
- .if (irqs_select & IRQ_KEY_UP)
+ .if (pmpar_irqs_select & IRQ_KEY_UP)
   .set enable_irqs___enable3 enable_irqs___enable3+IRQ_ENA3_KEY_UP
  .endif
- .if (irqs_select & IRQ_KEY_C)
+ .if (pmpar_irqs_select & IRQ_KEY_C)
   .set enable_irqs___enable3 enable_irqs___enable3+IRQ_ENA3_KEY_C
  .endif
- .if (irqs_select & IRQ_KEY_B)
+ .if (pmpar_irqs_select & IRQ_KEY_B)
   .set enable_irqs___enable3 enable_irqs___enable3+IRQ_ENA3_KEY_B
  .endif
- .if (irqs_select & IRQ_KEY_A)
+ .if (pmpar_irqs_select & IRQ_KEY_A)
   .set enable_irqs___enable3 enable_irqs___enable3+IRQ_ENA3_KEY_A
  .endif
  .if (enable_irqs___enable1 != 0)
@@ -1159,81 +1209,81 @@
  .unset enable_irqs___enable4
 .endm
 
-.macroicase DISABLE_IRQS irqs_select
+.macroicase DISABLE_IRQS pmpar_irqs_select
  .set disable_irqs___enable1 0
  .set disable_irqs___enable2 0
  .set disable_irqs___enable3 0
  .set disable_irqs___enable4 0
- .if (irqs_select & IRQ_PRC_COPY)
+ .if (pmpar_irqs_select & IRQ_PRC_COPY)
   .set disable_irqs___enable1 disable_irqs___enable1+IRQ_ENA1_PRC_COPY
  .endif
- .if (irqs_select & IRQ_PRC_DIV)
+ .if (pmpar_irqs_select & IRQ_PRC_DIV)
   .set disable_irqs___enable1 disable_irqs___enable1+IRQ_ENA1_PRC_DIV
  .endif
- .if (irqs_select & IRQ_TMR2_HI)
+ .if (pmpar_irqs_select & IRQ_TMR2_HI)
   .set disable_irqs___enable1 disable_irqs___enable1+IRQ_ENA1_TMR2_HI
  .endif
- .if (irqs_select & IRQ_TMR2_LO)
+ .if (pmpar_irqs_select & IRQ_TMR2_LO)
   .set disable_irqs___enable1 disable_irqs___enable1+IRQ_ENA1_TMR2_LO
  .endif
- .if (irqs_select & IRQ_TMR1_HI)
+ .if (pmpar_irqs_select & IRQ_TMR1_HI)
   .set disable_irqs___enable1 disable_irqs___enable1+IRQ_ENA1_TMR1_HI
  .endif
- .if (irqs_select & IRQ_TMR1_LO)
+ .if (pmpar_irqs_select & IRQ_TMR1_LO)
   .set disable_irqs___enable1 disable_irqs___enable1+IRQ_ENA1_TMR1_LO
  .endif
- .if (irqs_select & IRQ_TMR3_HI)
+ .if (pmpar_irqs_select & IRQ_TMR3_HI)
   .set disable_irqs___enable1 disable_irqs___enable1+IRQ_ENA1_TMR3_HI
  .endif
- .if (irqs_select & IRQ_TMR3_PVT)
+ .if (pmpar_irqs_select & IRQ_TMR3_PVT)
   .set disable_irqs___enable1 disable_irqs___enable1+IRQ_ENA1_TMR3_PVT
  .endif
- .if (irqs_select & IRQ_32HZ)
+ .if (pmpar_irqs_select & IRQ_32HZ)
   .set disable_irqs___enable2 disable_irqs___enable2+IRQ_ENA2_32HZ
  .endif
- .if (irqs_select & IRQ_8HZ)
+ .if (pmpar_irqs_select & IRQ_8HZ)
   .set disable_irqs___enable2 disable_irqs___enable2+IRQ_ENA2_8HZ
  .endif
- .if (irqs_select & IRQ_2HZ)
+ .if (pmpar_irqs_select & IRQ_2HZ)
   .set disable_irqs___enable2 disable_irqs___enable2+IRQ_ENA2_2HZ
  .endif
- .if (irqs_select & IRQ_1HZ)
+ .if (pmpar_irqs_select & IRQ_1HZ)
   .set disable_irqs___enable2 disable_irqs___enable2+IRQ_ENA2_1HZ
  .endif
- .if (irqs_select & IRQ_IR_RX)
+ .if (pmpar_irqs_select & IRQ_IR_RX)
   .set disable_irqs___enable4 disable_irqs___enable4+IRQ_ENA4_IR_RX
  .endif
- .if (irqs_select & IRQ_SHOCK)
+ .if (pmpar_irqs_select & IRQ_SHOCK)
   .set disable_irqs___enable4 disable_irqs___enable4+IRQ_ENA4_SHOCK
  .endif
- .if (irqs_select & IRQ_UNKNOWN)
+ .if (pmpar_irqs_select & IRQ_UNKNOWN)
   .set disable_irqs___enable4 disable_irqs___enable4+IRQ_ENA4_UNKNOWN1+IRQ_ENA4_UNKNOWN2+IRQ_ENA4_UNKNOWN3
  .endif
- .if (irqs_select & IRQ_CARTRIDGE)
+ .if (pmpar_irqs_select & IRQ_CARTRIDGE)
   .set disable_irqs___enable2 disable_irqs___enable2+IRQ_ENA2_CARTRIDGE
  .endif
- .if (irqs_select & IRQ_KEY_POWER)
+ .if (pmpar_irqs_select & IRQ_KEY_POWER)
   .set disable_irqs___enable3 disable_irqs___enable3+IRQ_ENA3_KEY_POWER
  .endif
- .if (irqs_select & IRQ_KEY_RIGHT)
+ .if (pmpar_irqs_select & IRQ_KEY_RIGHT)
   .set disable_irqs___enable3 disable_irqs___enable3+IRQ_ENA3_KEY_RIGHT
  .endif
- .if (irqs_select & IRQ_KEY_LEFT)
+ .if (pmpar_irqs_select & IRQ_KEY_LEFT)
   .set disable_irqs___enable3 disable_irqs___enable3+IRQ_ENA3_KEY_LEFT
  .endif
- .if (irqs_select & IRQ_KEY_DOWN)
+ .if (pmpar_irqs_select & IRQ_KEY_DOWN)
   .set disable_irqs___enable3 disable_irqs___enable3+IRQ_ENA3_KEY_DOWN
  .endif
- .if (irqs_select & IRQ_KEY_UP)
+ .if (pmpar_irqs_select & IRQ_KEY_UP)
   .set disable_irqs___enable3 disable_irqs___enable3+IRQ_ENA3_KEY_UP
  .endif
- .if (irqs_select & IRQ_KEY_C)
+ .if (pmpar_irqs_select & IRQ_KEY_C)
   .set disable_irqs___enable3 disable_irqs___enable3+IRQ_ENA3_KEY_C
  .endif
- .if (irqs_select & IRQ_KEY_B)
+ .if (pmpar_irqs_select & IRQ_KEY_B)
   .set disable_irqs___enable3 disable_irqs___enable3+IRQ_ENA3_KEY_B
  .endif
- .if (irqs_select & IRQ_KEY_A)
+ .if (pmpar_irqs_select & IRQ_KEY_A)
   .set disable_irqs___enable3 disable_irqs___enable3+IRQ_ENA3_KEY_A
  .endif
  .if (disable_irqs___enable1 != 0)
@@ -1261,23 +1311,23 @@
 .define PM_GAMECODE "HmBw"
 .endif
 
-.macroicase PM_HEADER txt_name, irq_active, irq_flag
+.macroicase PM_HEADER pmpar_txt_name, pmpar_irq_active, pmpar_irq_flag
 .org $2100
 .db "MN"
-.if (irq_flag & IRQF_NOSTARTUP)
+.if (pmpar_irq_flag & IRQF_NOSTARTUP)
 	jmp main
 .else
 	jmp main_pm_entry
 .endif
 
 .org $2108	; IRQ $03 - PRC Copy Complete
-.if (irq_active & IRQ_PRC_COPY)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_PRC_COPY)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_prc_copy >> 15)
  .endif
 	jmp irq_prc_copy
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1287,29 +1337,29 @@
 .endif
 
 .org $210E	; IRQ $04 - PRC Frame Divider Overflow
-.if (irq_active & IRQ_PRC_DIV)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_PRC_DIV)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_prc_div >> 15)
  .endif
 	jmp irq_prc_div
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
 	mov l, $02
-	jmp rirq_handle
+	jmp rirq_handle_prcdiv
  .endif
 .endif
 
 .org $2114	; IRQ $05 - Timer2 Upper-8 Underflow
-.if (irq_active & IRQ_TMR2_HI)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_TMR2_HI)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_tmr2_hi >> 15)
  .endif
 	jmp irq_tmr2_hi
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1319,13 +1369,13 @@
 .endif
 
 .org $211A	; IRQ $06 - Timer2 Lower-8 Underflow (8-bit only)
-.if (irq_active & IRQ_TMR2_LO)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_TMR2_LO)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_tmr2_lo >> 15)
  .endif
 	jmp irq_tmr2_lo
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1335,13 +1385,13 @@
 .endif
 
 .org $2120	; IRQ $07 - Timer1 Upper-8 Underflow
-.if (irq_active & IRQ_TMR1_HI)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_TMR1_HI)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_tmr1_hi >> 15)
  .endif
 	jmp irq_tmr1_hi
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1351,13 +1401,13 @@
 .endif
 
 .org $2126	; IRQ $08 - Timer1 Lower-8 Underflow (8-bit only)
-.if (irq_active & IRQ_TMR1_LO)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_TMR1_LO)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_tmr1_lo >> 15)
  .endif
 	jmp irq_tmr1_lo
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1367,13 +1417,13 @@
 .endif
 
 .org $212C	; IRQ $09 - Timer3 Upper-8 Underflow
-.if (irq_active & IRQ_TMR3_HI)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_TMR3_HI)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_tmr3_hi >> 15)
  .endif
 	jmp irq_tmr3_hi
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1383,13 +1433,13 @@
 .endif
 
 .org $2132	; IRQ $0A - Timer3 Pivot
-.if (irq_active & IRQ_TMR3_PVT)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_TMR3_PVT)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_tmr3_pvt >> 15)
  .endif
 	jmp irq_tmr3_pvt
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1399,13 +1449,13 @@
 .endif
 
 .org $2138	; IRQ $0B - 32Hz (From 256Hz Timer)
-.if (irq_active & IRQ_32HZ)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_32HZ)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_32hz >> 15)
  .endif
 	jmp irq_32hz
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1415,13 +1465,13 @@
 .endif
 	
 .org $213E	; IRQ $0C - 8Hz (From 256Hz Timer)
-.if (irq_active & IRQ_8HZ)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_8HZ)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_8hz >> 15)
  .endif
 	jmp irq_8hz
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1431,13 +1481,13 @@
 .endif
 	
 .org $2144	; IRQ $0D - 2Hz (From 256Hz Timer)
-.if (irq_active & IRQ_2HZ)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_2HZ)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_2hz >> 15)
  .endif
 	jmp irq_2hz
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1447,13 +1497,13 @@
 .endif
 	
 .org $214A	; IRQ $0E - 1Hz (From 256Hz Timer)
-.if (irq_active & IRQ_1HZ)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_1HZ)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_1hz >> 15)
  .endif
 	jmp irq_1hz
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1463,13 +1513,13 @@
 .endif
 
 .org $2150	; IRQ $0F - IR Receiver
-.if (irq_active & IRQ_IR_RX)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_IR_RX)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_ir_rx >> 15)
  .endif
 	jmp irq_ir_rx
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1479,13 +1529,13 @@
 .endif
 
 .org $2156	; IRQ $10 - Shock Sensor
-.if (irq_active & IRQ_SHOCK)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_SHOCK)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_shock >> 15)
  .endif
 	jmp irq_shock
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1495,13 +1545,13 @@
 .endif
 
 .org $215C	; IRQ $15 - Power Key
-.if (irq_active & IRQ_KEY_POWER)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_KEY_POWER)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_key_power >> 15)
  .endif
 	jmp irq_key_power
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1511,13 +1561,13 @@
 .endif
 
 .org $2162	; IRQ $16 - Right Key
-.if (irq_active & IRQ_KEY_RIGHT)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_KEY_RIGHT)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_key_right >> 15)
  .endif
 	jmp irq_key_right
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1527,13 +1577,13 @@
 .endif
 
 .org $2168	; IRQ $17 - Left Key
-.if (irq_active & IRQ_KEY_LEFT)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_KEY_LEFT)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_key_left >> 15)
  .endif
 	jmp irq_key_left
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1543,13 +1593,13 @@
 .endif
 	
 .org $216E	; IRQ $18 - Down Key
-.if (irq_active & IRQ_KEY_DOWN)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_KEY_DOWN)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_key_down >> 15)
  .endif
 	jmp irq_key_down
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1559,13 +1609,13 @@
 .endif
 
 .org $2174	; IRQ $19 - Up Key
-.if (irq_active & IRQ_KEY_UP)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_KEY_UP)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_key_up >> 15)
  .endif
 	jmp irq_key_up
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1575,13 +1625,13 @@
 .endif
 
 .org $217A	; IRQ $1A - C Key
-.if (irq_active & IRQ_KEY_C)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_KEY_C)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_key_c >> 15)
  .endif
 	jmp irq_key_c
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1591,13 +1641,13 @@
 .endif
 
 .org $2180	; IRQ $1B - B Key
-.if (irq_active & IRQ_KEY_B)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_KEY_B)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_key_b >> 15)
  .endif
 	jmp irq_key_b
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1607,13 +1657,13 @@
 .endif
 
 .org $2186	; IRQ $1C - A Key
-.if (irq_active & IRQ_KEY_A)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_KEY_A)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_key_a >> 15)
  .endif
 	jmp irq_key_a
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1623,13 +1673,13 @@
 .endif
 
 .org $218C	; IRQ $1D - Unknown
-.if (irq_active & IRQ_UNKNOWN)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_UNKNOWN)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_unknown >> 15)
  .endif
 	jmp irq_unknown
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1639,13 +1689,13 @@
 .endif
 
 .org $2192	; IRQ $1E - Unknown
-.if (irq_active & IRQ_UNKNOWN)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_UNKNOWN)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_unknown >> 15)
  .endif
 	jmp irq_unknown
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1655,13 +1705,13 @@
 .endif
 
 .org $2198	; IRQ $1F - Unknown
-.if (irq_active & IRQ_UNKNOWN)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_UNKNOWN)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_unknown >> 15)
  .endif
 	jmp irq_unknown
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1671,13 +1721,13 @@
 .endif
 
 .org $219E	; IRQ $14 - Cartridge IRQ
-.if (irq_active & IRQ_CARTRIDGE)
- .if (irq_flag & IRQF_FAR)
+.if (pmpar_irq_active & IRQ_CARTRIDGE)
+ .if (pmpar_irq_flag & IRQF_FAR)
 	mov u, (irq_cartridge >> 15)
  .endif
 	jmp irq_cartridge
 .else
- .if (irq_flag & IRQF_NORIRQ)
+ .if (pmpar_irq_flag & IRQF_NORIRQ)
 	reti
  .else
 	push hl
@@ -1691,12 +1741,12 @@
 .org $21AC
 .db PM_GAMECODE
 .org $21B0
-.db txt_name
+.db pmpar_txt_name
 .org $21BC
 .db "2P"
 
 .org $21D0
-.if (!(irq_flag & IRQF_NORIRQ))
+.if (!(pmpar_irq_flag & IRQF_NORIRQ))
 rirq_table:
 .db $80, IRQ_ACT1	; IRQ $03 - PRC Copy Complete
 .db $40, IRQ_ACT1	; IRQ $04 - PRC Frame Divider Overflow
@@ -1723,8 +1773,20 @@ rirq_table:
 .db $02, IRQ_ACT3	; IRQ $1B - B Key
 .db $01, IRQ_ACT3	; IRQ $1C - A Key
 
+rirq_handle_prcdiv:
+	push i
+	mov i, $00
+	mov hl, PMINIT_FRAMECNT
+	inc [hl]
+	mov [n+IRQ_ACT1], IRQ_ACT1_PRC_DIV
+	pop i
+	pop hl
+	reti
+
 rirq_handle:
+	push i
 	push ba
+	mov i, $00
 	mov h, $00
 	add hl, rirq_table
 	mov a, [hl]
@@ -1733,11 +1795,12 @@ rirq_handle:
 	mov h, $20
 	mov [hl], a
 	pop ba
+	pop i
 	pop hl
 	reti
 .endif
 
-.if (!(irq_flag & IRQF_NOSTARTUP))
+.if (!(pmpar_irq_flag & IRQF_NOSTARTUP))
 main_pm_entry:
 	mov f, DISABLE_IRQ
 	xor a, a
@@ -1748,8 +1811,9 @@ main_pm_entry:
 	mov sp, SSTACK_BASE
 	mov [n+PRC_MAP_HI], a
 	mov [n+PRC_SPR_HI], a
-	mov [$14E1], a
-	mov [$14E2], b		; InitKeys
+	mov [PMINIT_RAND+1], a   ; Hi Rand
+	mov [PMINIT_FRAMECNT], a ; Frame Cnt
+	mov [PMINIT_KEYPAD], b   ; InitKeys
 	mov [n+IRQ_ENA1], a
 	mov [n+IRQ_ENA2], a
 	mov [n+IRQ_ENA3], a
@@ -1763,9 +1827,189 @@ main_pm_entry:
 	mov [n+IRQ_PRI2], a
 	mov [n+IRQ_PRI3], a
 	mov a, $01
-	mov [$14E0], a		; Rand = $0001
+	mov [PMINIT_RAND], a     ; Lo Rand = $0001
 	jmp main
 .endif
 
 ROM_BASE:
+.endm
+
+.macroicase ADD24X pminitp_addsub24
+ .if pminitp_addsub24 == 1
+	inc x
+	jnzb _skip
+	push a
+	mov a, xi
+	inc a
+	mov xi, a
+	pop a
+ .elif pminitp_addsub24 >= 65536
+  .error "Value is out-of-range, must be 16-bits"
+ .elif pminitp_addsub24 <= -65536
+  .error "Value is out-of-range, must be 16-bits"
+ .elif pminitp_addsub24 > 0
+	add x, pminitp_addsub24
+	jncb _skip
+	push a
+	mov a, xi
+	inc a
+	mov xi, a
+	pop a
+ .elif pminitp_addsub24 < 0
+	sub x, -pminitp_addsub24
+	jncb _skip
+	push a
+	mov a, xi
+	dec a
+	mov xi, a
+	pop a
+ .endif
+_skip:
+.endm
+
+.macroicase ADD24Y pminitp_addsub24
+ .if pminitp_addsub24 == 1
+	inc y
+	jnzb _skip
+	push a
+	mov a, yi
+	inc a
+	mov yi, a
+	pop a
+ .elif pminitp_addsub24 >= 65536
+  .error "Value is out-of-range, must be 16-bits"
+ .elif pminitp_addsub24 <= -65536
+  .error "Value is out-of-range, must be 16-bits"
+ .elif pminitp_addsub24 > 0
+	add y, pminitp_addsub24
+	jncb _skip
+	push a
+	mov a, yi
+	inc a
+	mov yi, a
+	pop a
+ .elif pminitp_addsub24 < 0
+	sub y, -pminitp_addsub24
+	jncb _skip
+	push a
+	mov a, yi
+	dec a
+	mov yi, a
+	pop a
+ .endif
+_skip:
+.endm
+
+.macroicase ADD24HL pminitp_addsub24
+ .if pminitp_addsub24 == 1
+	inc hl
+	jnzb _skip
+	push a
+	mov a, i
+	inc a
+	mov i, a
+	pop a
+ .elif pminitp_addsub24 >= 65536
+  .error "Value is out-of-range, must be 16-bits"
+ .elif pminitp_addsub24 <= -65536
+  .error "Value is out-of-range, must be 16-bits"
+ .elif pminitp_addsub24 > 0
+	add hl, pminitp_addsub24
+	jncb _skip
+	push a
+	mov a, i
+	inc a
+	mov i, a
+	pop a
+ .elif pminitp_addsub24 < 0
+	sub y, -pminitp_addsub24
+	jncb _skip
+	push a
+	mov a, i
+	dec a
+	mov i, a
+	pop a
+ .endif
+_skip:
+.endm
+
+.macroicase ADD24X_A pminitp_addsub24
+ .if pminitp_addsub24 == 1
+	inc x
+	jnzb _skip
+	mov a, xi
+	inc a
+	mov xi, a
+ .elif pminitp_addsub24 >= 65536
+  .error "Value is out-of-range, must be 16-bits"
+ .elif pminitp_addsub24 <= -65536
+  .error "Value is out-of-range, must be 16-bits"
+ .elif pminitp_addsub24 > 0
+	add x, pminitp_addsub24
+	jncb _skip
+	mov a, xi
+	inc a
+	mov xi, a
+ .elif pminitp_addsub24 < 0
+	sub x, -pminitp_addsub24
+	jncb _skip
+	mov a, xi
+	dec a
+	mov xi, a
+ .endif
+_skip:
+.endm
+
+.macroicase ADD24Y_A pminitp_addsub24
+ .if pminitp_addsub24 == 1
+	inc y
+	jnzb _skip
+	mov a, yi
+	inc a
+	mov yi, a
+ .elif pminitp_addsub24 >= 65536
+  .error "Value is out-of-range, must be 16-bits"
+ .elif pminitp_addsub24 <= -65536
+  .error "Value is out-of-range, must be 16-bits"
+ .elif pminitp_addsub24 > 0
+	add y, pminitp_addsub24
+	jncb _skip
+	mov a, yi
+	inc a
+	mov yi, a
+ .elif pminitp_addsub24 < 0
+	sub y, -pminitp_addsub24
+	jncb _skip
+	mov a, yi
+	dec a
+	mov yi, a
+ .endif
+_skip:
+.endm
+
+.macroicase ADD24HL_A pminitp_addsub24
+ .if pminitp_addsub24 == 1
+	inc hl
+	jnzb _skip
+	mov a, i
+	inc a
+	mov i, a
+ .elif pminitp_addsub24 >= 65536
+  .error "Value is out-of-range, must be 16-bits"
+ .elif pminitp_addsub24 <= -65536
+  .error "Value is out-of-range, must be 16-bits"
+ .elif pminitp_addsub24 > 0
+	add hl, pminitp_addsub24
+	jncb _skip
+	mov a, i
+	inc a
+	mov i, a
+ .elif pminitp_addsub24 < 0
+	sub y, -pminitp_addsub24
+	jncb _skip
+	mov a, i
+	dec a
+	mov i, a
+ .endif
+_skip:
 .endm

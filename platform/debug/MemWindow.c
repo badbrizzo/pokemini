@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -47,6 +47,7 @@ static GtkItemFactory *ItemFactory;
 static GtkAccelGroup *AccelGroup;
 static GtkBox *VBox1;
 static GtkMenuBar *MenuBar;
+static GtkLabel *LabelRunFull;
 static SGtkXDrawingView MemView;
 
 static int CustomFont8x12Display = 0;
@@ -691,6 +692,10 @@ int MemWindow_Create(void)
 	gtk_box_pack_start(VBox1, GTK_WIDGET(MenuBar), FALSE, TRUE, 0);
 	gtk_widget_show(GTK_WIDGET(MenuBar));
 
+	// Label that warn when running full speed
+	LabelRunFull = GTK_LABEL(gtk_label_new("To view content you must stop emulation or run in debug frames/steps."));
+	gtk_box_pack_start(VBox1, GTK_WIDGET(LabelRunFull), FALSE, TRUE, 0);
+
 	// Mem View
 	MemView.on_exposure = SGtkXDVCB(MemView_exposure);
 	MemView.on_scroll = SGtkXDVCB(AnyView_scroll);
@@ -766,6 +771,17 @@ void MemWindow_UpdateConfigs(void)
 void MemWindow_ROMResized(void)
 {
 	sgtkx_drawing_view_sbminmax(&MemView, 0, (PM_ROM_Size/16)-1);
+}
+
+void MemWindow_Sensitive(int enabled)
+{
+	if (enabled) {
+		gtk_widget_hide(GTK_WIDGET(LabelRunFull));
+		gtk_widget_show(GTK_WIDGET(MemView.box));
+	} else {
+		gtk_widget_show(GTK_WIDGET(LabelRunFull));
+		gtk_widget_hide(GTK_WIDGET(MemView.box));
+	}
 }
 
 void MemWindow_Refresh(int now)

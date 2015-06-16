@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2014  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +24,14 @@ int LCDDirty = 0;
 uint8_t *LCDData = NULL;
 uint8_t *LCDPixelsD = NULL;
 uint8_t *LCDPixelsA = NULL;
+uint8_t *LCDPixelsAS = NULL;
+
+const int LCDDirtyPixels[4] = {
+	4, // LCDMODE_ANALOG
+	2, // LCDMODE_3SHADES
+	1, // LCDMODE_2SHADES
+	2  // LCDMODE_COLORS
+};
 
 //
 // Functions
@@ -36,8 +44,9 @@ int MinxLCD_Create(void)
 	if (!LCDData) return 0;
 	LCDPixelsD = (uint8_t *)malloc(96*64);
 	if (!LCDPixelsD) return 0;
-	LCDPixelsA = (uint8_t *)malloc(96*64);
+	LCDPixelsA = (uint8_t *)malloc(96*64*2);
 	if (!LCDPixelsA) return 0;
+	LCDPixelsAS = (uint8_t *)LCDPixelsA + 96*64;
 
 	// Reset
 	MinxLCD_Reset(1);
@@ -66,7 +75,7 @@ void MinxLCD_Reset(int hardreset)
 	// Clean up memory
 	memset(LCDData, 0x00, 256*9);
 	memset(LCDPixelsD, 0x00, 96*64);
-	memset(LCDPixelsA, 0x00, 96*64);
+	memset(LCDPixelsA, 0x00, 96*64*2);
 
 	// Initialize State
 	memset((void *)&MinxLCD, 0, sizeof(TMinxLCD));
@@ -154,29 +163,73 @@ void MinxLCD_WriteReg(int cpu, uint8_t reg, uint8_t val)
 	}
 }
 
-#define DECAY_LDOFF	10
-#define DECAY_LRISE	4
-#define DECAY_LFALL	2
-#define DECAY_ADOFF	80
+#define DECAY_A_OFF	64
 #define DECAY_ARISE	50
 #define DECAY_AFALL	30
+#define DECAY_L_OFF	16
+#define DECAY_LRISE	4
+#define DECAY_LFALL	2
 
-void MinxLCD_DecayRefresh(void)
+void MinxLCD_DecayRefreshOld(void)
 {
 	int i, amt;
 	if (MinxLCD.DisplayOn) {
 		for (i=0; i<96*64; i++) {
-			if (LCDPixelsD[i]) amt = Interpolate8(LCDPixelsA[i], MinxLCD.Pixel1Intensity, DECAY_ARISE) + DECAY_LRISE;
-			else amt = Interpolate8(LCDPixelsA[i], MinxLCD.Pixel0Intensity, DECAY_AFALL) - DECAY_LFALL;
-			if (amt < MinxLCD.Pixel0Intensity) amt = MinxLCD.Pixel0Intensity;
-			if (amt > MinxLCD.Pixel1Intensity) amt = MinxLCD.Pixel1Intensity;
+			if (LCDPixelsD[i]) {
+				amt = Interpolate8(LCDPixelsA[i], MinxLCD.Pixel1Intensity, DECAY_ARISE) + DECAY_LRISE;
+				if (amt > MinxLCD.Pixel1Intensity) amt = MinxLCD.Pixel1Intensity;
+			} else {
+				amt = Interpolate8(LCDPixelsA[i], MinxLCD.Pixel0Intensity, DECAY_AFALL) - DECAY_LFALL;
+				if (amt < MinxLCD.Pixel0Intensity) amt = MinxLCD.Pixel0Intensity;
+			}
 			LCDPixelsA[i] = amt;
 		}
 	} else {
 		for (i=0; i<96*64; i++) {
-			amt = Interpolate8(LCDPixelsA[i], 0, DECAY_ADOFF) - DECAY_LDOFF;
+			amt = Interpolate8(LCDPixelsA[i], 0, DECAY_A_OFF) - DECAY_L_OFF;
 			if (amt < MinxLCD.Pixel0Intensity) amt = MinxLCD.Pixel0Intensity;
 			LCDPixelsA[i] = amt;
+		}
+	}
+}
+
+static const uint8_t BitsActives[256] = {
+	0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
+	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+	3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+	3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+	3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+	3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+	4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8
+};
+
+void MinxLCD_DecayRefresh(void)
+{
+	int i, level;
+	uint8_t sh;
+	// This is tuned for 5 shades
+	if (MinxLCD.DisplayOn) {
+		for (i=0; i<96*64; i++) {
+			sh = (LCDPixelsD[i] ? 0x08 : 0x00) | (LCDPixelsAS[i] >> 1);
+			LCDPixelsAS[i] = sh;
+			level = BitsActives[sh];
+			LCDPixelsA[i] = (MinxLCD.Pixel0Intensity * (4 - level) + MinxLCD.Pixel1Intensity * level) >> 2;
+		}
+	} else {
+		for (i=0; i<96*64; i++) {
+			sh = (LCDPixelsAS[i] >> 1);
+			LCDPixelsAS[i] = sh;
+			level = BitsActives[sh];
+			LCDPixelsA[i] = (MinxLCD.Pixel0Intensity * (4 - level) + MinxLCD.Pixel1Intensity * level) >> 2;
 		}
 	}
 }
@@ -448,7 +501,7 @@ void MinxLCD_LCDWrite(uint8_t data)
 		MinxLCD.Column++;
 		if (MinxLCD.Column > 131) MinxLCD.Column = 131;
 		MinxLCD.RequireDummyR = 1;
-		LCDDirty = MINX_DIRTYPIX;
+		LCDDirty = LCDDirtyPixels[CommandLine.lcdmode];
 	}
 }
 
@@ -471,76 +524,75 @@ void MinxLCD_LCDWritefb(uint8_t *fb)
 	MinxLCD.Column = 96;
 	MinxLCD.RequireDummyR = 1;
 	MinxLCD.ReadModifyMode = 0;
-	LCDDirty = MINX_DIRTYPIX;
+	LCDDirty = LCDDirtyPixels[CommandLine.lcdmode];
 }
 
 // Contrast level on light and dark pixel
-// TODO: Real values are not linear!
 const uint8_t MinxLCD_ContrastLvl[64][2] = {
-	{  0,   0},	// 0x00
-	{  0,   7},	// 0x01
-	{  1,  15},	// 0x02
-	{  1,  22},	// 0x03
-	{  2,  30},	// 0x04
-	{  2,  37},	// 0x05
-	{  3,  45},	// 0x06
-	{  3,  52},	// 0x07
-	{  4,  60},	// 0x08
-	{  4,  67},	// 0x09
-	{  5,  75},	// 0x0A
-	{  5,  82},	// 0x0B
-	{  6,  90},	// 0x0C
-	{  6,  97},	// 0x0D
-	{  7, 105},	// 0x0E
-	{  7, 112},	// 0x0F
-	{  8, 120},	// 0x10
-	{  8, 127},	// 0x11
-	{  9, 135},	// 0x12
-	{  9, 142},	// 0x13
-	{ 10, 150},	// 0x14
-	{ 10, 157},	// 0x15
-	{ 11, 165},	// 0x16
-	{ 11, 172},	// 0x17
-	{ 12, 180},	// 0x18
-	{ 12, 187},	// 0x19
-	{ 13, 195},	// 0x1A
-	{ 13, 202},	// 0x1B
-	{ 14, 210},	// 0x1C
-	{ 14, 217},	// 0x1D
-	{ 15, 225},	// 0x1E
-	{ 15, 232},	// 0x1F - Center
-	{ 22, 240},	// 0x20
-	{ 30, 241},	// 0x21
-	{ 37, 241},	// 0x22
-	{ 45, 242},	// 0x23
-	{ 52, 242},	// 0x24
-	{ 60, 243},	// 0x25
-	{ 67, 243},	// 0x26
-	{ 75, 244},	// 0x27
-	{ 82, 244},	// 0x28
-	{ 90, 245},	// 0x29
-	{ 97, 245},	// 0x2A
-	{105, 246},	// 0x2B
-	{112, 246},	// 0x2C
-	{120, 247},	// 0x2D
-	{127, 247},	// 0x2E
-	{135, 248},	// 0x2F
-	{142, 248},	// 0x30
-	{150, 249},	// 0x31
-	{157, 249},	// 0x32
-	{165, 250},	// 0x33
-	{172, 250},	// 0x34
-	{180, 251},	// 0x35
-	{187, 251},	// 0x36
-	{195, 252},	// 0x37
-	{202, 252},	// 0x38
-	{210, 253},	// 0x39
-	{217, 253},	// 0x3A
-	{225, 254},	// 0x3B
-	{232, 254},	// 0x3C
-	{240, 255},	// 0x3D
-	{247, 255},	// 0x3E
-	{255, 255},	// 0x3F
+	{  0,   4},	//  0 (0x00)
+	{  0,   4},	//  1 (0x01)
+	{  0,   4},	//  2 (0x02)
+	{  0,   4},	//  3 (0x03)
+	{  0,   6},	//  4 (0x04)
+	{  0,  11},	//  5 (0x05)
+	{  0,  17},	//  6 (0x06)
+	{  0,  24},	//  7 (0x07)
+	{  0,  31},	//  8 (0x08)
+	{  0,  40},	//  9 (0x09)
+	{  0,  48},	// 10 (0x0A)
+	{  0,  57},	// 11 (0x0B)
+	{  0,  67},	// 12 (0x0C)
+	{  0,  77},	// 13 (0x0D)
+	{  0,  88},	// 14 (0x0E)
+	{  0,  99},	// 15 (0x0F)
+	{  0, 110},	// 16 (0x10)
+	{  0, 122},	// 17 (0x11)
+	{  0, 133},	// 18 (0x12)
+	{  0, 146},	// 19 (0x13)
+	{  0, 158},	// 20 (0x14)
+	{  0, 171},	// 21 (0x15)
+	{  0, 184},	// 22 (0x16)
+	{  0, 198},	// 23 (0x17)
+	{  0, 212},	// 24 (0x18)
+	{  0, 226},	// 25 (0x19)
+	{  0, 240},	// 26 (0x1A)
+	{  0, 255},	// 27 (0x1B)
+	{  2, 255},	// 28 (0x1C)
+	{  5, 255},	// 29 (0x1D)
+	{ 10, 255},	// 30 (0x1E)
+	{ 15, 255},	// 31 (0x1F)
+	{ 21, 255},	// 32 (0x20)
+	{ 27, 255},	// 33 (0x21)
+	{ 34, 255},	// 34 (0x22)
+	{ 41, 255},	// 35 (0x23)
+	{ 48, 255},	// 36 (0x24)
+	{ 56, 255},	// 37 (0x25)
+	{ 64, 255},	// 38 (0x26)
+	{ 73, 255},	// 39 (0x27)
+	{ 81, 255},	// 40 (0x28)
+	{ 90, 255},	// 41 (0x29)
+	{100, 255},	// 42 (0x2A)
+	{109, 255},	// 43 (0x2B)
+	{119, 255},	// 44 (0x2C)
+	{129, 255},	// 45 (0x2D)
+	{139, 255},	// 46 (0x2E)
+	{149, 255},	// 47 (0x2F)
+	{160, 255},	// 48 (0x30)
+	{171, 255},	// 49 (0x31)
+	{182, 255},	// 50 (0x32)
+	{193, 255},	// 51 (0x33)
+	{204, 255},	// 52 (0x34)
+	{216, 255},	// 53 (0x35)
+	{228, 255},	// 54 (0x36)
+	{240, 255},	// 55 (0x37)
+	{240, 255},	// 56 (0x38)
+	{240, 255},	// 57 (0x39)
+	{240, 255},	// 58 (0x3A)
+	{240, 255},	// 59 (0x3B)
+	{240, 255},	// 60 (0x3C)
+	{240, 255},	// 61 (0x3D)
+	{240, 255},	// 62 (0x3E)
+	{240, 255},	// 63 (0x3F)
 };
 
 void MinxLCD_SetContrast(uint8_t value)

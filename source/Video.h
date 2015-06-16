@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2014  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -133,10 +133,10 @@ void PokeMini_VideoRect_16(uint16_t *screen, int pitchW, int x, int y, int width
 
 // Video palette handling
 void PokeMini_VideoPalette_Init(int pixellayout, int enablehighcolor);
-void PokeMini_VideoPalette_32(uint32_t P0Color, uint32_t P1Color);
-void PokeMini_VideoPalette_16(uint16_t P0Color, uint16_t P1Color);
+void PokeMini_VideoPalette_32(uint32_t P0Color, uint32_t P1Color, int contrastboost, int brightoffset);
+void PokeMini_VideoPalette_16(uint16_t P0Color, uint16_t P1Color, int contrastboost, int brightoffset);
+void PokeMini_VideoPalette_Index(int index, uint32_t *CustomMonoPal, int contrastboost, int brightoffset);
 void PokeMini_VideoPalette_Free(void);
-void PokeMini_VideoPalette_Index(int index, uint32_t *CustomMonoPal);
 
 // Render to a preview 96x64 buffer
 void PokeMini_VideoPreview_32(uint32_t *screen, int pitchW, int lcdmode);

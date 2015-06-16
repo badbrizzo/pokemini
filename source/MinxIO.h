@@ -103,8 +103,6 @@ int MinxIO_FormatEEPROM(void);
 
 void MinxIO_Keypad(uint8_t key, int pressed);
 
-void MinxIO_Shock(void);
-
 void MinxIO_BatteryLow(int low);
 
 void MinxIO_SetTimeStamp(uint8_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t min, uint8_t sec);

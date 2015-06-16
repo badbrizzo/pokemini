@@ -19,9 +19,9 @@ POKEROOT = ../../
 #---------------------------------------------------------------------------------
 TARGET		:=	PokeMini
 BUILD		:=	build
-SOURCES		:=	$(POKEROOT)source $(POKEROOT)resource $(POKEROOT)freebios $(POKEROOT)sourcex $(POKEROOT)dependencies/minizip .
+SOURCES		:=	$(POKEROOT)source $(POKEROOT)resource $(POKEROOT)freebios $(POKEROOT)sourcex $(POKEROOT)dependencies/zlib $(POKEROOT)dependencies/minizip .
 DATA		:=
-INCLUDES	:=	$(POKEROOT)source $(POKEROOT)resource $(POKEROOT)freebios $(POKEROOT)sourcex $(POKEROOT)dependencies/minizip
+INCLUDES	:=	$(POKEROOT)source $(POKEROOT)resource $(POKEROOT)freebios $(POKEROOT)sourcex $(POKEROOT)dependencies/zlib $(POKEROOT)dependencies/minizip
 GRAPHICS	:=	gfx
 
 #---------------------------------------------------------------------------------
@@ -43,7 +43,7 @@ LDFLAGS	=	-specs=ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project (order is important)
 #---------------------------------------------------------------------------------
-LIBS	:=	-lfat -lnds9 -lmm9 -lz
+LIBS	:=	-lfat -lnds9 -lmm9
  
  
 #---------------------------------------------------------------------------------
@@ -73,6 +73,8 @@ endif
 
 # Only include what's really needed
 CFILES := PokeMini_NDS.c	\
+ 3in1.c	\
+ RumbleSupport.c	\
  freebios/freebios.c	\
  source/PMCommon.c	\
  source/PokeMini.c	\
@@ -97,6 +99,12 @@ CFILES := PokeMini_NDS.c	\
  source/Joystick.c	\
  dependencies/minizip/unzip.c	\
  dependencies/minizip/ioapi.c	\
+ dependencies/zlib/adler32.o	\
+ dependencies/zlib/crc32.o	\
+ dependencies/zlib/inffast.o	\
+ dependencies/zlib/inflate.o	\
+ dependencies/zlib/inftrees.o	\
+ dependencies/zlib/zutil.o	\
  sourcex/Zip64comp.c	\
  resource/PokeMini_ColorPal.c	\
  resource/PokeMini_Font12.c	\

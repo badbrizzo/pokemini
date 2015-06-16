@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@ typedef struct {
 	int hexformat;		// Hex decimal format for number input, strings pointer
 	int min;		// Minimum value for number input
 	int max;		// Maximum value for number input
+	const char **combolist;	// Combo list content
 	GtkWidget *widget;	// Allocated widget
 } GtkXCustomDialog;
 

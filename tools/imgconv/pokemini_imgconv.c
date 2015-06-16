@@ -1,6 +1,6 @@
 /*
   PokeMini Image Converter
-  Copyright (C) 2011-2012  JustBurn
+  Copyright (C) 2011-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 #include "ExportCode.h"
 #include "pokemini_imgconv.h"
 
-#define VERSION_STR	"v1.2"
+#define VERSION_STR	"v1.4"
 #define EXPORT_STR	"Image exported with PokeMini Image Converter " VERSION_STR
 
 #define STR_GRAY	"%s_gray"
@@ -95,6 +95,8 @@ struct {
 	int mapidofs;		// Map Index Offset
 	int mapidsiz;		// Map Index Size (0 = Unlimited)
 	int maxtiles;		// Maximum number of tiles
+	int threhold1;		// Dark threhold
+	int threhold2;		// Light threhold
 } confs;
 
 // ---------- Conf ----------
@@ -118,6 +120,8 @@ void init_confs()
 	confs.mapidofs = 0;
 	confs.mapidsiz = 0;
 	confs.maxtiles = 65536;
+	confs.threhold1 = 64;
+	confs.threhold2 = 192;
 }
 
 // Load confs from arguments
@@ -199,6 +203,10 @@ int load_confs_args(int argc, char **argv)
 			else if (!strcasecmp(*argv, "-id_offset")) { if (*++argv) confs.mapidofs = BetweenNum(atoi_Ex(*argv, 0), 0, 255); }
 			else if (!strcasecmp(*argv, "-id_size")) { if (*++argv) confs.mapidsiz = BetweenNum(atoi_Ex(*argv, 0), 0, 65536); }
 			else if (!strcasecmp(*argv, "-maxtiles")) { if (*++argv) confs.maxtiles = BetweenNum(atoi_Ex(*argv, 0), 0, 65536); }
+			else if (!strcasecmp(*argv, "-darkthrehold")) { if (*++argv) confs.threhold1 = BetweenNum(atoi_Ex(*argv, 0), 0, 255); }
+			else if (!strcasecmp(*argv, "-lightthrehold")) { if (*++argv) confs.threhold2 = BetweenNum(atoi_Ex(*argv, 0), 0, 255); }
+			else if (!strcasecmp(*argv, "-dt")) { if (*++argv) confs.threhold1 = BetweenNum(atoi_Ex(*argv, 0), 0, 255); }
+			else if (!strcasecmp(*argv, "-lt")) { if (*++argv) confs.threhold2 = BetweenNum(atoi_Ex(*argv, 0), 0, 255); }
 			else if (!strcasecmp(*argv, "-q")) confs.quiet = 1;
 			else if (!strcasecmp(*argv, "-v")) confs.verbose = 1;
 			else return 0;
@@ -302,6 +310,10 @@ int load_confs_file(const char *filename)
 			else if (!strcasecmp(key, "id_offset")) confs.mapidofs = BetweenNum(atoi_Ex(value, 0), 0, 255);
 			else if (!strcasecmp(key, "id_size")) confs.mapidsiz = BetweenNum(atoi_Ex(value, 0), 0, 65536);
 			else if (!strcasecmp(key, "maxtiles")) confs.maxtiles = BetweenNum(atoi_Ex(value, 0), 0, 65536);
+			else if (!strcasecmp(key, "darkthrehold")) confs.threhold1 = BetweenNum(atoi_Ex(value, 0), 0, 255);
+			else if (!strcasecmp(key, "lightthrehold")) confs.threhold2 = BetweenNum(atoi_Ex(value, 0), 0, 255);
+			else if (!strcasecmp(key, "dt")) confs.threhold1 = BetweenNum(atoi_Ex(value, 0), 0, 255);
+			else if (!strcasecmp(key, "lt")) confs.threhold2 = BetweenNum(atoi_Ex(value, 0), 0, 255);
 			else printf("Conf warning: Unknown '%s' key\n", key);
 		}
 		fclose(fi);
@@ -421,7 +433,7 @@ int convert_image(int gfx)
 				}
 				if (mapid == 0x100) {
 					// Map ID going over 8-bits range
-					printf("Error: Map ID out of range\n");
+					fprintf(stderr, "Error: Map ID out of range\n");
 					noerror = 0;
 				}
 				if (confs.mapidsiz) {
@@ -436,7 +448,7 @@ int convert_image(int gfx)
 				if (confs.meta_shift) ImgMap[mapoff++] = schid * ImgMetaSize;
 				else ImgMap[mapoff++] = schid;
 				if (schid < 0) {
-					printf("Error: No matching tile in (%i, %i)\n", px, py);
+					fprintf(stderr, "Error: No matching tile in (%i, %i)\n", px, py);
 					noerror = 0;
 				}
 			} else {
@@ -513,27 +525,27 @@ int convert_imgdata(const char *imgfile, int *ImgW, int *ImgH, unsigned char **I
 		ftyp = FIF_DDS;
 		if (!confs.quiet) printf("Warning: DDS image isn't fully supported\n");
 	} else {
-		printf("Error: Unsupported image extension '%s'\n", ext);
+		fprintf(stderr, "Error: Unsupported image extension '%s'\n", ext);
 		return 0;
 	}	
 
 	// Open image
 	dib = FreeImage_Load(ftyp, imgfile, 0);
 	if (dib == NULL) {
-		printf("Error: Failed to open image '%s'\n", imgfile);
+		fprintf(stderr, "Error: Failed to open image '%s'\n", imgfile);
 		return 0;
 	}
 	FreeImage_FlipVertical(dib);
 	w = FreeImage_GetWidth(dib);
 	h = FreeImage_GetHeight(dib);
 	if ((w & 7) || (h & 7)) {
-		printf("Error: Width and height must be multiple of 8 in '%s'\n", imgfile);
+		fprintf(stderr, "Error: Width and height must be multiple of 8 in '%s'\n", imgfile);
 		FreeImage_Unload(dib);
 		return 0;
 	}
 	dib2 = FreeImage_ConvertTo32Bits(dib);
 	if (dib2 == NULL) {
-		printf("Error: Failed to convert image\n");
+		fprintf(stderr, "Error: Failed to convert image\n");
 		FreeImage_Unload(dib);
 		return 0;
 	}
@@ -547,13 +559,13 @@ int convert_imgdata(const char *imgfile, int *ImgW, int *ImgH, unsigned char **I
 		unsigned char *ptrA = (unsigned char *)&alp[y * w];
 		for (x=0; x<w; x++) {
 			color = ptr[x] & 0xFFFFFF;
-			dist = (color & 0x0000FF) + ((color & 0x00FF00) >> 8) + ((color & 0xFF0000) >> 16);
-			if (dist >= 576) {
+			dist = ((color & 0x0000FF) * 19595 + ((color & 0x00FF00) >> 8) * 38470 + ((color & 0xFF0000) >> 16) * 7471) >> 16;
+			if (dist >= confs.threhold2) {
 				ptrS[x] = 2;
-			} else if (dist >= 384) {
-				ptrS[x] = 1;
-			} else {
+			} else if (dist <= confs.threhold1) {
 				ptrS[x] = 0;
+			} else {
+				ptrS[x] = 1;
 			}
 			if (color == confs.colorkey) ptrA[x] = 0;
 			else ptrA[x] = (ptr[x] & 0x80000000) ? 1 : 0;
@@ -631,6 +643,8 @@ int main(int argc, char **argv)
 		printf("  -idofs 0            Map index offset\n");
 		printf("  -idsize 0           Map index size (0=Unlimited)\n");
 		printf("  -maxtiles 65536     Maximum number of tiles\n");
+		printf("  -dt 64              Dark threhold, lower lum. will be full dark\n");
+		printf("  -lt 192             Light threhold, higher lum. will be full light\n");
 		printf("  -q                  Quiet\n");
 		printf("  -v                  Verbose\n");
 		printf("\nSupported images are:\n.bmp, .ico, .jpg, .jpeg, .pcx, .png, .tga, .tif, .tiff, .gif, .psd and .dds\n");
@@ -640,7 +654,7 @@ int main(int argc, char **argv)
 	if (strlen(confs.conf_f)) {
 		// Load configurations
 		if (!load_confs_file(confs.conf_f)) {
-			printf("Error: Failed to load '%s' conf file\n", confs.conf_f);
+			fprintf(stderr, "Error: Failed to load '%s' conf file\n", confs.conf_f);
 			return 1;
 		}
 		// Make sure command-line takes priority
@@ -649,7 +663,7 @@ int main(int argc, char **argv)
 
 	// Image filename cannot be empty
 	if (!strlen(confs.img_f)) {
-		printf("Error: Missing input image\n");
+		fprintf(stderr, "Error: Missing input image\n");
 		return 1;
 	}
 
@@ -689,6 +703,16 @@ int main(int argc, char **argv)
 	ImgMetaSize = confs.meta_w * confs.meta_h;
 	ImgMaxMetaT = ImgMaxTiles / ImgMetaSize;
 	if (confs.gfx == GFX_MAP) confs.outm_de = 1;
+
+	// Sanity check for meta tiles
+	if (ImgW % (confs.meta_w*8)) {
+		fprintf(stderr, "Error: Width must be multiple of %i\n", (confs.meta_w*8));
+		return 1;
+	}
+	if (ImgH % (confs.meta_h*8)) {
+		fprintf(stderr, "Error: Height must be multiple of %i\n", (confs.meta_h*8));
+		return 1;
+	}
 
 	// Convert image
 	if (!confs.quiet && confs.verbose) {
@@ -787,7 +811,7 @@ int main(int argc, char **argv)
 				}
 				exported |= 1;
 			}
-		} else printf("Error: Couldn't write output to '%s'\n", confs.out1_f);
+		} else fprintf(stderr, "Error: Couldn't write output to '%s'\n", confs.out1_f);
 		Close_ExportCode(foptr);
 	}
 	if (confs.out2_e && strlen(confs.out2_f) && !confs.joined) {
@@ -802,7 +826,7 @@ int main(int argc, char **argv)
 				if (ImgMetaSize != 1) printf("      %d meta-tiles to output gray\n", ImgNumMetaT);
 			}
 			exported |= 2;
-		} else printf("Error: Couldn't write output to '%s'\n", confs.out2_f);
+		} else fprintf(stderr, "Error: Couldn't write output to '%s'\n", confs.out2_f);
 		Close_ExportCode(foptr);
 	}
 	if (confs.outts1_e && strlen(confs.outts1_f) && !confs.joined) {
@@ -817,7 +841,7 @@ int main(int argc, char **argv)
 				if (ImgMetaSize != 1) printf("      %d meta-tiles to tileset output\n", ImgNumTilesetMetaT);
 			}
 			exported |= 4;
-		} else printf("Error: Couldn't write output to '%s'\n", confs.outts1_f);
+		} else fprintf(stderr, "Error: Couldn't write output to '%s'\n", confs.outts1_f);
 		Close_ExportCode(foptr);
 	}
 	if (confs.outts2_e && strlen(confs.outts2_f) && !confs.joined) {
@@ -832,7 +856,7 @@ int main(int argc, char **argv)
 				if (ImgMetaSize != 1) printf("      %d meta-tiles to tileset output gray\n", ImgNumTilesetMetaT);
 			}
 			exported |= 8;
-		} else printf("Error: Couldn't write output to '%s'\n", confs.outts2_f);
+		} else fprintf(stderr, "Error: Couldn't write output to '%s'\n", confs.outts2_f);
 		Close_ExportCode(foptr);
 	}
 	if (confs.outm_e && strlen(confs.outm_f) && !confs.joined) {
@@ -844,7 +868,7 @@ int main(int argc, char **argv)
 			WriteArray_ExportCode(foptr, FILE_ECODE_8BITS, confs.outm_v, ImgMap, ImgMaxMapID);
 			if (!confs.quiet) printf("Wrote %d entries to map indexes\n", ImgMaxMapID);
 			exported |= 16;
-		} else printf("Error: Couldn't write output to '%s'\n", confs.outm_f);
+		} else fprintf(stderr, "Error: Couldn't write output to '%s'\n", confs.outm_f);
 		Close_ExportCode(foptr);
 	}
 	if (confs.outh_e && strlen(confs.outh_f)) {
@@ -899,7 +923,7 @@ int main(int argc, char **argv)
 				if (exported & 16) fprintf(fo, "extern unsigned char %s[];\n", confs.outm_v);
 				fprintf(fo, "\n");
 			}
-		} else printf("Error: Couldn't write output to '%s'\n", confs.outh_f);
+		} else fprintf(stderr, "Error: Couldn't write output to '%s'\n", confs.outh_f);
 		fclose(fo);
 	}
 

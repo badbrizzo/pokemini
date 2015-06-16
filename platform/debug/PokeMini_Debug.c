@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@
 #include "ExportWAV.h"
 #include "Joystick.h"
 #include "Keyboard.h"
-#include "KeybSDLMap.h"
+#include "KeybMapSDL.h"
 
 #include "Video_x1.h"
 #include "Video_x2.h"
@@ -541,10 +541,16 @@ void refresh_debug(int now)
 // "Run full" status changed
 void sensitive_debug(int enable)
 {
+	MemWindow_Sensitive(enable);
+	PRCTilesWindow_Sensitive(enable);
+	PRCMapWindow_Sensitive(enable);
+	PRCSprWindow_Sensitive(enable);
 	TimersWindow_Sensitive(enable);
 	HardIOWindow_Sensitive(enable);
 	IRQWindow_Sensitive(enable);
 	MiscWindow_Sensitive(enable);
+	SymbWindow_Sensitive(enable);
+	TraceWindow_Sensitive(enable);
 }
 
 // Display command-line switches
@@ -645,7 +651,7 @@ int main(int argc, char **argv)
 
 	// Setup palette and LCD mode
 	PokeMini_VideoPalette_Init(PokeMini_BGR16, 1);
-	PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal);
+	PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 	PokeMini_ApplyChanges();
 
 	// Load stuff & allocate dummy ROM
@@ -684,10 +690,10 @@ int main(int argc, char **argv)
 		}
 	}
 
-	// Activate CPU window and remap keyboard
+	// Activate CPU window and map keyboard
 	CPUWindow_Activate();
 	Add_InfoMessage("[Info] Emulator started.\n");
-	KeyboardRemap(&KeybSDLRemap);
+	KeyboardRemap(&KeybMapSDL);
 	refresh_debug(1);
 	enablesound(0);
 

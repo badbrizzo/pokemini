@@ -16,13 +16,39 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+void (*raw_handle_callback)(void) = 0;
+
 #ifdef _WIN32
 
 #include <conio.h>
+#include <windows.h>
 
 int raw_input_check(void)
 {
 	return kbhit();
+}
+
+BOOL CtrlHandler(DWORD fdwCtrlType)
+{ 
+	switch (fdwCtrlType) {
+	case CTRL_C_EVENT:
+		if (raw_handle_callback) raw_handle_callback();
+		return TRUE;
+	default:
+		return FALSE;
+	}
+}
+
+void raw_handle_ctrlc(void (*func)(void))
+{
+	raw_handle_callback = func;
+	SetConsoleCtrlHandler((PHANDLER_ROUTINE)CtrlHandler, TRUE);
+	/*
+	DWORD ConMode;
+	HANDLE StdIn = GetStdHandle(STD_INPUT_HANDLE);
+	GetConsoleMode(StdIn, &ConMode);
+	SetConsoleMode(StdIn, ConMode & ~ENABLE_PROCESSED_INPUT);
+	*/
 }
 
 #else
@@ -57,6 +83,17 @@ int raw_input_check(void)
 	tcsetattr(STDIN_FILENO, TCSANOW, &oldterm);
 
 	return res;
+}
+
+void sdump_close(int dummy)
+{
+	if (raw_handle_callback) raw_handle_callback();
+}
+
+void raw_handle_ctrlc(void (*func)(void))
+{
+	raw_handle_callback = func;
+	signal(SIGINT, raw_handle_signal);
 }
 
 #endif

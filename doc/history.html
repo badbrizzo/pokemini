@@ -116,7 +116,7 @@ window.onload = InstructionSet_CheckItem;
     <p><a href="TOOLS_ImgConv.html">Image Converter</a></p>
     <p><a href="TOOLS_MusicConv.html">Music Converter</a></p>
     <p>Last Updated:<br />
-      <strong>Dec 18, 2013</strong></p>
+      <strong>Jun. 12, 2014</strong></p>
     <br /><br />
     <h3 style="text-align:center"><img src="cpudie.gif" alt="CPU Die" width="73" height="55" /><br />
       Hardware</h3>
@@ -186,6 +186,48 @@ window.onload = InstructionSet_CheckItem;
   <div id="mainContent">
   <!-- InstanceBeginEditable name="Content" -->
     <h1> History </h1>
+    <h4>-: 0.60 Changes :-</h4>
+    <ul>
+      <li> Changed version format to only 2 fields to avoid confusion</li>
+      <li>Fixed RTC month being reported wrong from host</li>
+      <li>Adjusted graphics, now it display darker shades to match more closely the real system</li>
+      <li>Added 2 new options: LCD contrast and LCD bright</li>
+      <li>Changed the way analog LCD mode works, now it's less blurry and can do up to 5 shades without artifacts</li>
+      <li>SDL port has been upgraded to SDL 2, this brings Haptic support and other improvements</li>
+      <li>New Keyboard/Joystick option to allow checking inputs</li>
+      <li>Applying joystick settings now can (re)enable the device</li>
+      <li>Share EEPROM is now disabled by default</li>
+      <li>Emulator can be compiled for 64-bit CPU without issues now</li>
+      <li>Limited sync-cycles to 64 on 'accurancy' platforms</li>
+      <li>Win32 Only:
+        <ul>
+          <li>Corrected Direct3D issue in some GPUs</li>
+          <li>Sound write position is now handled correctly</li>
+        </ul>
+      </li>
+      <li>NDS Only: Added 3-in-1 rumble support</li>
+      <li>PSP Only:
+        <ul>
+          <li>Analog stick now works</li>
+          <li>Added FPS display under Platform... (default is off)</li>
+          <li>Reached 100% emulation by skipping 1 frame, aparently hardware is limited to 60fps max</li>
+        </ul>
+      </li>
+      <li>Dreamcast Only:
+        <ul>
+          <li>Improved sound latency (thanks BlueCrab).</li>
+          <li>Added FPS display under Platform... (default is off)</li>
+        </ul>
+      </li>
+      <li>Debugger Only:
+        <ul>
+          <li>Minor fixes</li>
+          <li>Trace history is now 10000 instructions instead of 256</li>
+          <li>Added copy &amp; paste buttons to timing counters<br />
+          </li>
+        </ul>
+      </li>
+    </ul>
     <h4>-: 0.5.4 Changes :-</h4>
     <ul>
       <li>Fixed savestates load/save</li>
@@ -304,6 +346,6 @@ window.onload = InstructionSet_CheckItem;
     <span class="clearfloat"></span>
   </div>
 </div>
-<p class="copyright">&copy; 2011-2013 by JustBurn - Hardware documentation copy from Sublab by Team-Pokémé</p>
+<p class="copyright">&copy; 2011-2015 by JustBurn - Hardware documentation copy from Sublab by Team-Pokémé</p>
 </body>
 <!-- InstanceEnd --></html>

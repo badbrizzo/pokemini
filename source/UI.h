@@ -99,6 +99,10 @@ void UIMenu_BeginMessage(void);
 void UIMenu_SetMessage(char *message, int color);
 void UIMenu_EndMessage(int timeout);
 
+// Real-time text output
+typedef int (*TUIRealtimeCB)(int line, char *outtext);
+void UIMenu_RealTimeMessage(TUIRealtimeCB cb);
+
 // Resize display
 int UIMenu_SetDisplay(int width, int height, int pixellayout, uint8_t *bg_image, uint16_t *bg_pal16, uint32_t *bg_pal32);
 
@@ -122,6 +126,9 @@ void UIDraw_String_16(uint16_t *screen, int pitchW, int x, int y, int padd, char
 // Display Icons
 void UIDraw_Icon_32(uint32_t *screen, int pitchW, int x, int y, uint8_t ch);
 void UIDraw_Icon_16(uint16_t *screen, int pitchW, int x, int y, uint8_t ch);
+
+// Process UI
+int UIMenu_Process(void);
 
 // Display UI
 void UIMenu_Display_32(uint32_t *screen, int pitchW);

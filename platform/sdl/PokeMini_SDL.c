@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 #include "ExportWAV.h"
 #include "Joystick.h"
 #include "Keyboard.h"
-#include "KeybSDLMap.h"
+#include "KeybMapSDL.h"
 
 #include "Video_x1.h"
 #include "Video_x2.h"
@@ -46,6 +46,7 @@ const char *AppName = "PokeMini " PokeMini_Version " SDL";
 
 int emurunning = 1, emulimiter = 1;
 SDL_Surface *screen;
+SDL_Joystick *joystick = NULL;
 int PMWidth, PMHeight;
 int PixPitch, PMOff, UIOff;
 
@@ -69,18 +70,21 @@ const char *clc_zoom_txt[] = {
 // Custom command line (NEW IN 0.5.0)
 int clc_zoom = 4, clc_bpp = 16, clc_fullscreen = 0;
 char clc_dump_sound[PMTMPV] = {0};
+int clc_displayfps = 0;
 const TCommandLineCustom CustomArgs[] = {
 	{ "-dumpsound", (int *)&clc_dump_sound, COMMANDLINE_STR, PMTMPV-1 },
 	{ "-zoom", &clc_zoom, COMMANDLINE_INT, 1, 6 },
 	{ "-bpp", &clc_bpp, COMMANDLINE_INT, 16, 32 },
 	{ "-windowed", &clc_fullscreen, COMMANDLINE_INTSET, 0 },
 	{ "-fullscreen", &clc_fullscreen, COMMANDLINE_INTSET, 1 },
+	{ "-displayfps", &clc_displayfps, COMMANDLINE_INTSET, 1 },
 	{ "", NULL, COMMANDLINE_EOL }
 };
 const TCommandLineCustom CustomConf[] = {
 	{ "zoom", &clc_zoom, COMMANDLINE_INT, 1, 6 },
 	{ "bpp", &clc_bpp, COMMANDLINE_INT, 16, 32 },
 	{ "fullscreen", &clc_fullscreen, COMMANDLINE_BOOL },
+	{ "displayfps", &clc_displayfps, COMMANDLINE_BOOL },
 	{ "", NULL, COMMANDLINE_EOL }
 };
 
@@ -91,8 +95,9 @@ TUIMenu_Item UIItems_Platform[] = {
 	{ 0,  1, "Zoom: %s", UIItems_PlatformC },
 	{ 0,  2, "Depth: %dbpp", UIItems_PlatformC },
 	{ 0,  3, "Fullscreen: %s", UIItems_PlatformC },
-	{ 0,  4, "Define Joystick...", UIItems_PlatformC },
-	{ 0,  5, "Define Keyboard...", UIItems_PlatformC },
+	{ 0,  4, "Display FPS: %s", UIItems_PlatformC },
+	{ 0,  8, "Define Joystick...", UIItems_PlatformC },
+	{ 0,  9, "Define Keyboard...", UIItems_PlatformC },
 	PLATFORMDEF_SAVEOPTIONS,
 	PLATFORMDEF_END(UIItems_PlatformC)
 };
@@ -123,6 +128,9 @@ int UIItems_PlatformC(int index, int reason)
 				clc_fullscreen = !clc_fullscreen;
 				zoomchanged = 1;
 				break;
+			case 4: // Display FPS
+				clc_displayfps = !clc_displayfps;
+				break;
 		}
 	}
 	if (reason == UIMENU_RIGHT) {
@@ -143,10 +151,13 @@ int UIItems_PlatformC(int index, int reason)
 				clc_fullscreen = !clc_fullscreen;
 				zoomchanged = 1;
 				break;
-			case 4: // Define Joystick...
+			case 4: // Display FPS
+				clc_displayfps = !clc_displayfps;
+				break;
+			case 8: // Define Joystick...
 				JoystickEnterMenu();
 				break;
-			case 5: // Define Keyboard...
+			case 9: // Define Keyboard...
 				KeyboardEnterMenu();
 				break;
 		}
@@ -154,6 +165,7 @@ int UIItems_PlatformC(int index, int reason)
 	UIMenu_ChangeItem(UIItems_Platform, 1, "Zoom: %s", clc_zoom_txt[clc_zoom]);
 	UIMenu_ChangeItem(UIItems_Platform, 2, "Depth: %dbpp", clc_bpp);
 	UIMenu_ChangeItem(UIItems_Platform, 3, "Fullscreen: %s", clc_fullscreen ? "Yes" : "No");
+	UIMenu_ChangeItem(UIItems_Platform, 4, "Display FPS: %s", clc_displayfps ? "Yes" : "No");
 	if (zoomchanged) {
 		SDL_UnlockSurface(screen);
 		setup_screen();
@@ -304,6 +316,22 @@ void enablesound(int sound)
 	if (AudioEnabled) SDL_PauseAudio(!sound);
 }
 
+// Callback when joystick is re-opened
+void reopen_joystick(int enable, int index)
+{
+	if (joystick) {
+		SDL_JoystickClose(joystick);
+		joystick = NULL;
+	}
+	if (enable && (SDL_NumJoysticks() > 0)) {
+		SDL_JoystickEventState(SDL_ENABLE);
+		joystick = SDL_JoystickOpen(index);	// Open joystick
+		if (joystick) {
+			printf("Opened joystick: %s\n", SDL_JoystickName(index));
+		}
+	}
+}
+
 // Menu loop
 void menuloop()
 {
@@ -321,6 +349,9 @@ void menuloop()
 	while (emurunning && (UI_Status == UI_STATUS_MENU)) {
 		// Slowdown to approx. 60fps
 		SDL_Delay(16);
+
+		// Process UI
+		UIMenu_Process();
 
 		// Screen rendering
 		SDL_FillRect(screen, NULL, 0);
@@ -350,9 +381,9 @@ void menuloop()
 // Main function
 int main(int argc, char **argv)
 {
-	SDL_Joystick *joy;
 	SDL_Event event;
 	char title[256];
+	char fpstxt[16];
 
 	// Process arguments
 	printf("%s\n\n", AppName);
@@ -364,6 +395,7 @@ int main(int argc, char **argv)
 		printf("  -dumpsound sound.wav   Dump sound into a WAV file\n");
 		printf("  -windowed              Display in window (default)\n");
 		printf("  -fullscreen            Display in fullscreen\n");
+		printf("  -displayfps            Display FPS counter on screen\n");
 		printf("  -zoom n                Zoom display: 1 to 6 (def 4)\n");
 		printf("  -bpp n                 Bits-Per-Pixel: 16 or 32 (def 16)\n");
 		return 1;
@@ -374,7 +406,6 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Couldn't initialize SDL: %s\n", SDL_GetError());
 		return 1;
 	}
-	joy = SDL_JoystickOpen(CommandLine.joyid);	// Open joystick
 	atexit(SDL_Quit); // Clean up on exit
 
 	// Initialize the display
@@ -420,7 +451,7 @@ int main(int argc, char **argv)
 
 	// Setup palette and LCD mode
 	PokeMini_VideoPalette_Init(PokeMini_BGR16, 1);
-	PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal);
+	PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 	PokeMini_ApplyChanges();
 
 	// Load stuff
@@ -432,8 +463,9 @@ int main(int argc, char **argv)
 	// Enable sound & init UI
 	printf("Running emulator...\n");
 	UIMenu_Init();
-	KeyboardRemap(&KeybSDLRemap);
+	KeyboardRemap(&KeybMapSDL);
 	enablesound(CommandLine.sound);
+	JoystickUpdateCallback(reopen_joystick);
 
 	// Emulator's loop
 	unsigned long time, NewTickFPS = 0, NewTickSync = 0;
@@ -467,6 +499,14 @@ int main(int argc, char **argv)
 			}
 			LCDDirty = 0;
 
+			// Display FPS counter
+			if (clc_displayfps) {
+				if (PokeMini_VideoDepth == 32)
+					UIDraw_String_32((uint32_t *)screen->pixels, PixPitch, 4, 4, 10, fpstxt, UI_Font1_Pal32);
+				else
+					UIDraw_String_16((uint16_t *)screen->pixels, PixPitch, 4, 4, 10, fpstxt, UI_Font1_Pal16);
+			}
+
 			// Unlock surface
 			SDL_UnlockSurface(screen);
 			SDL_Flip(screen);
@@ -481,11 +521,12 @@ int main(int argc, char **argv)
 		// calculate FPS
 		fpscnt++;
 		if (time >= NewTickFPS) {
-				fps = fpscnt;
-				sprintf(title, "%s - %d%%", AppName, fps * 100 / 72);
-				SDL_WM_SetCaption(title, "PMEWindow");
-				NewTickFPS = time + 1000;
-				fpscnt = 0;
+			fps = fpscnt;
+			sprintf(title, "%s - %d%%", AppName, fps * 100 / 72);
+			sprintf(fpstxt, "%i FPS", fps);
+			SDL_WM_SetCaption(title, "PMEWindow");
+			NewTickFPS = time + 1000;
+			fpscnt = 0;
 		}
 	}
 
@@ -500,7 +541,7 @@ int main(int argc, char **argv)
 	PokeMini_SaveFromCommandLines(1);
 
 	// Close joystick
-	if (joy) SDL_JoystickClose(joy);
+	if (joystick) SDL_JoystickClose(joystick);
 
 	// Terminate...
 	printf("Shutdown emulator...\n");

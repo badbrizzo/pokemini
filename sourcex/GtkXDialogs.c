@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -221,8 +221,8 @@ int EnterNumberDialog(GtkWindow *parentwindow, const char *title, const char *ca
 	int result = 0;
 
 	if (hexnum) {
-		if (numberin < 0) sprintf(tmp, "-0x%0*X", digits, numberin);
-		else sprintf(tmp, "0x%0*X", digits, numberin);
+		if (numberin < 0) sprintf(tmp, "-$%0*X", digits, numberin);
+		else sprintf(tmp, "$%0*X", digits, numberin);
 	} else {
 		sprintf(tmp, "%i", numberin);
 	}
@@ -252,8 +252,8 @@ int EnterNumberDialog(GtkWindow *parentwindow, const char *title, const char *ca
 		gtk_widget_grab_focus(GTK_WIDGET(entry));
 		response = gtk_dialog_run(dialog);
 		if (response == GTK_RESPONSE_OK) {
-			if (sscanf(gtk_entry_get_text(GTK_ENTRY(entry)), "%i", numberout) == 1) result = 1;
-			else {
+			result = atoi_Ex2(gtk_entry_get_text(GTK_ENTRY(entry)), numberout);
+			if (result != 1) {
 				result = -1;
 				MessageDialog(parentwindow, "Invalid number", title, GTK_MESSAGE_ERROR, NULL);
 			}
@@ -280,7 +280,7 @@ int CustomDialog(GtkWindow *parentwindow, const char *title, GtkXCustomDialog *i
 	GtkRadioButton *radiomaster2 = NULL;
 	GtkRadioButton *radiomaster3 = NULL;
 	GtkWidget *firstwidget = NULL;
-	char tmp[256], **sptr;
+	char tmp[256];
 	int i, result = 1;
 
 	dialog = GTK_DIALOG(gtk_dialog_new_with_buttons(title, GTK_WINDOW(parentwindow),
@@ -329,9 +329,8 @@ int CustomDialog(GtkWindow *parentwindow, const char *title, GtkXCustomDialog *i
 			gtk_box_pack_start(GTK_BOX(dialog->vbox), cwidg->widget, FALSE, TRUE, 4);
 		} else if (cwidg->wtype == GTKXCD_COMBO) {
 			cwidg->widget = gtk_combo_box_new_text();
-			sptr = (char **)cwidg->hexformat;
 			for (i=0; i<cwidg->digits; i++) {
-				gtk_combo_box_append_text(GTK_COMBO_BOX(cwidg->widget), sptr[i]);
+				gtk_combo_box_append_text(GTK_COMBO_BOX(cwidg->widget), cwidg->combolist[i]);
 			}
 			gtk_combo_box_set_active(GTK_COMBO_BOX(cwidg->widget), cwidg->number);
 			gtk_box_pack_start(GTK_BOX(dialog->vbox), cwidg->widget, FALSE, TRUE, 4);
@@ -340,8 +339,8 @@ int CustomDialog(GtkWindow *parentwindow, const char *title, GtkXCustomDialog *i
 			gtk_box_pack_start(GTK_BOX(dialog->vbox), cwidg->widget, FALSE, TRUE, 4);
 		} else if (cwidg->wtype == GTKXCD_NUMIN) {
 			if (cwidg->hexformat) {
-				if (cwidg->number < 0) sprintf(tmp, "-0x%0*X", cwidg->digits, cwidg->number);
-				else sprintf(tmp, "0x%0*X", cwidg->digits, cwidg->number);
+				if (cwidg->number < 0) sprintf(tmp, "-$%0*X", cwidg->digits, cwidg->number);
+				else sprintf(tmp, "$%0*X", cwidg->digits, cwidg->number);
 			} else {
 				sprintf(tmp, "%i", cwidg->number);
 			}
@@ -376,7 +375,7 @@ int CustomDialog(GtkWindow *parentwindow, const char *title, GtkXCustomDialog *i
 				} else if (cwidg->wtype == GTKXCD_COMBO) {
 					cwidg->number = gtk_combo_box_get_active(GTK_COMBO_BOX(cwidg->widget));
 				} else if (cwidg->wtype == GTKXCD_NUMIN) {
-					if (sscanf(gtk_entry_get_text(GTK_ENTRY(cwidg->widget)), "%i", &cwidg->number) != 1) {
+					if (atoi_Ex2(gtk_entry_get_text(GTK_ENTRY(cwidg->widget)), &cwidg->number) != 1) {
 						result = -1;
 						MessageDialog(parentwindow, "Invalid number", title, GTK_MESSAGE_ERROR, NULL);
 					}

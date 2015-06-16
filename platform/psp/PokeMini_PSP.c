@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,6 +31,9 @@
 #include "PokeMini_BG4.h"
 
 const char *AppName = "PokeMini " PokeMini_Version " PSP";
+
+#define SOUNDBUFFER	2048
+#define PMSNDBUFFER	(SOUNDBUFFER*4)
 
 // For the emulator loop and video
 int emurunning = 1;
@@ -75,7 +78,8 @@ char *PSP_KeysNames[] = {
 	"Triangle",	// 12
 	"Circle",	// 13
 	"Cross",	// 14
-	"Square"	// 15
+	"Square",	// 15
+	"Menu"		// 16 but not used
 };
 int PSP_KeysMapping[] = {
 	0,		// Menu
@@ -92,8 +96,10 @@ int PSP_KeysMapping[] = {
 
 // Custom command line (NEW IN 0.5.0)
 int clc_zoom = 4;
+int clc_displayfps = 0;
 const TCommandLineCustom CustomConf[] = {
 	{ "zoom", &clc_zoom, COMMANDLINE_INT, 1, 4 },
+	{ "displayfps", &clc_displayfps, COMMANDLINE_BOOL },
 	{ "", NULL, COMMANDLINE_EOL }
 };
 
@@ -102,6 +108,7 @@ int UIItems_PlatformC(int index, int reason);
 TUIMenu_Item UIItems_Platform[] = {
 	PLATFORMDEF_GOBACK,
 	{ 0,  1, "Zoom: %s", UIItems_PlatformC },
+	{ 0,  2, "Display FPS: %s", UIItems_PlatformC },
 	{ 0,  9, "Define Joystick...", UIItems_PlatformC },
 	PLATFORMDEF_SAVEOPTIONS,
 	PLATFORMDEF_END(UIItems_PlatformC)
@@ -122,6 +129,9 @@ int UIItems_PlatformC(int index, int reason)
 				if (clc_zoom < 1) clc_zoom = 4;
 				zoomchanged = 1;
 				break;
+			case 2: // Display FPS
+				clc_displayfps = !clc_displayfps;
+				break;
 		}
 	}
 	if (reason == UIMENU_RIGHT) {
@@ -131,12 +141,16 @@ int UIItems_PlatformC(int index, int reason)
 				if (clc_zoom > 4) clc_zoom = 1;
 				zoomchanged = 1;
 				break;
+			case 2: // Display FPS
+				clc_displayfps = !clc_displayfps;
+				break;
 			case 9: // Define joystick
 				JoystickEnterMenu();
 				break;
 		}
 	}
 	UIMenu_ChangeItem(UIItems_Platform, 1, "Zoom: %s", clc_zoom_txt[clc_zoom]);
+	UIMenu_ChangeItem(UIItems_Platform, 2, "Display FPS: %s", clc_displayfps ? "Yes" : "No");
 	if (zoomchanged) setup_screen();
 	return 1;
 }
@@ -177,6 +191,8 @@ void HandleKeys()
 {
 	SceCtrlData pad;
 	sceCtrlReadBufferPositive(&pad, 1);
+	JoystickAxisEvent(0, ((int)pad.Lx - 128) * 256);
+	JoystickAxisEvent(1, ((int)pad.Ly - 128) * 256);
 	JoystickBitsEvent(pad.Buttons);
 }
 
@@ -185,17 +201,19 @@ void audiostreamcallback(void *buf, unsigned int length, void *userdata)
 {
 	MinxAudio_GenerateEmulatedS16((int16_t *)buf, length, 2);
 }
-void enablesound(int enable)
+
+// Enable / Disable sound
+void enablesound(int sound)
 {
 	static int soundenabled = 0;
-	if ((!soundenabled) && (enable)) {
+	if ((!soundenabled) && sound) {
 		// Enable sound
 		pspAudioSetChannelCallback(0, audiostreamcallback, NULL);
-	} else if ((soundenabled) && (!enable)) {
+	} else if ((soundenabled) && !sound) {
 		// Disable sound
 		pspAudioSetChannelCallback(0, NULL, NULL);
 	}
-	soundenabled = enable;
+	soundenabled = sound;
 }
 
 // Menu loop
@@ -217,6 +235,9 @@ void menuloop()
 
 		// Handle keys
 		HandleKeys();
+
+		// Process UI
+		UIMenu_Process();
 
 		// Screen rendering
 		UIMenu_Display_16((uint16_t *)PSP_DrawVideo + ui_offset, 512);
@@ -240,7 +261,7 @@ void menuloop()
 int main(int argc, char **argv)
 {
 	int battimeout = 0;
-	int clearc = 0;
+	char fpstxt[16];
 
 	// Open debug files
 	PokeDebugFOut = fopen("dbg_stdout.txt", "w");
@@ -252,7 +273,7 @@ int main(int argc, char **argv)
 	CommandLineInit();
 	CommandLine.low_battery = 2;	// PSP can report battery status
 	CommandLineConfFile("pokemini.cfg", "pokemini_psp.cfg", CustomConf);
-	JoystickSetup("PSP", 0, 0, PSP_KeysNames, 16, PSP_KeysMapping);
+	JoystickSetup("PSP", 0, 30000, PSP_KeysNames, 16, PSP_KeysMapping);
 
 	// PSP Init and set screen
 	PSP_Init();
@@ -264,7 +285,7 @@ int main(int argc, char **argv)
 
 	// Setup palette and LCD mode
 	PokeMini_VideoPalette_Init(PokeMini_RGB16, 1);
-	PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal);
+	PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 	PokeMini_ApplyChanges();
 
 	// Load stuff
@@ -277,26 +298,52 @@ int main(int argc, char **argv)
 	PokeDPrint(POKEMSG_OUT, "Running emulator...\n");
 	UIMenu_Init();
 	enablesound(CommandLine.sound);
+	sceCtrlSetSamplingCycle(0);
+	sceCtrlSetSamplingMode(PSP_CTRL_MODE_ANALOG);
 
 	// Emulator's loop
+	u64 tickcurr;
+	u64 fpsticknext,fpstickres = (u64)sceRtcGetTickResolution();
+	u64 frmticknext, frmtickres = (u64)sceRtcGetTickResolution() / 36;
+	sceRtcGetCurrentTick(&tickcurr);
+	fpsticknext = tickcurr + fpstickres;
+	frmticknext = tickcurr + frmtickres;
+	int fps = 72, fpscnt = 0;
+	strcpy(fpstxt, "");
 	while (emurunning) {
-		// Emulate 1 frame
+		// Emulate 2 frames
 		PokeMini_EmulateFrame();
-
-		// Clear screen while rumbling
-		if (PokeMini_Rumbling) clearc = 2;
-		if (clearc) {
-			PSP_ClearDraw();
-			clearc--;
+		PokeMini_EmulateFrame();
+		if (RequireSoundSync) {
+			while (MinxAudio_SyncWithAudio()) sceKernelDelayThread(1000);
+		} else {
+			do {
+				sceRtcGetCurrentTick(&tickcurr);
+				sceKernelDelayThread(1000);
+			} while (tickcurr < frmticknext);
+			frmticknext = tickcurr + frmtickres;	// Aprox 36 times per sec
 		}
 
 		// Screen rendering
+		PSP_ClearDraw();
 		if (PokeMini_Rumbling) {
 			PokeMini_VideoBlit((uint16_t *)PSP_DrawVideo + pm_offset + PokeMini_GenRumbleOffset(512), 512);
 		} else {
 			PokeMini_VideoBlit((uint16_t *)PSP_DrawVideo + pm_offset, 512);
 		}
 		LCDDirty = 0;
+
+		// Display FPS counter
+		if (clc_displayfps) {
+			sceRtcGetCurrentTick(&tickcurr);
+			if (tickcurr >= fpsticknext) {
+				fpsticknext = tickcurr + fpstickres;
+				fps = fpscnt;
+				fpscnt = 0;
+				sprintf(fpstxt, "%i FPS", fps);
+			} else fpscnt++;
+			UIDraw_String_16((uint16_t *)PSP_DrawVideo, 512, 4, 4, 10, fpstxt, UI_Font1_Pal16);
+		}
 
 		// Handle keys
 		HandleKeys();

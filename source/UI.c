@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2014  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -179,6 +179,7 @@ void UIText_Scroll(char *txtout, char *txtin, int maxchars, int anim)
 
 int UIMenu_Width = 0;	// Menu width
 int UIMenu_Height = 0;	// Menu height
+int UIMenu_PixelLayout = 0;	// Menu pixel layout
 int UIMenu_Lines = 0;	// Menu visible lines
 
 uint8_t *UIMenu_BGImage = NULL;
@@ -192,7 +193,7 @@ int UIMenu_Cur = 0;	// Cursor offset
 int UIMenu_Ani = 0;	// For animation effect
 int UIMenu_InKey = 0;	// Key input
 int UIMenu_CKeyMod  = 0;	// C Key modifier
-int UIMenu_HardReset = 1;	// Hard reset
+int UIMenu_HardReset = 0;	// Hard reset
 int UIMenu_Savestate = 0;	// Savestate offset
 
 int UIMenu_CurrentItemsNum = 0;			// Number of current items
@@ -208,10 +209,13 @@ int UIMenu_MsgCountDw = 0;	// Message count down (to move the offset)
 int UIMenu_MsgTimer = 0;	// Message timer (to close the message)
 int UIMenu_MsgLines = 0;	// Message lines (total number of lines)
 
+static TUIRealtimeCB UIRealtimeCB = NULL;
+
 enum {
 	UIPAGE_MENUITEMS,
 	UIPAGE_LOADROM,
 	UIPAGE_MESSAGE,
+	UIPAGE_REALTIMETEXT
 };
 
 int UIItems_MainMenuC(int index, int reason);
@@ -236,6 +240,8 @@ TUIMenu_Item UIItems_Options[] = {
 	{ 0,  1, "Palette: %s", UIItems_OptionsC },
 	{ 0,  2, "LCD Mode: %s", UIItems_OptionsC },
 	{ 0,  3, "LCD Filter: %s", UIItems_OptionsC },
+	{ 0, 10, "Contrast: %i%%", UIItems_OptionsC },
+	{ 0, 11, "Bright: %i%%", UIItems_OptionsC },
 	{ 0,  4, "Sound: %s", UIItems_OptionsC },
 	{ 0,  5, "Piezo Filter: %s", UIItems_OptionsC },
 	{ 0,  6, "PM Battery: %s", UIItems_OptionsC },
@@ -274,6 +280,7 @@ int UIMenu_SetDisplay(int width, int height, int pixellayout, uint8_t *bg_image,
 	// Calculate maximum number of lines
 	UIMenu_Width = width;
 	UIMenu_Height = height;
+	UIMenu_PixelLayout = pixellayout;
 	UIMenu_Lines = (height - 20) / 12;
 	if (UIMenu_Lines < 8) return 0;
 	UIMenu_MMax = UIMenu_Lines - 2;	
@@ -400,6 +407,10 @@ int UIMenu_ReadDir(char *dirname)
 	struct dirent *dirEntry;
 	struct stat Stat;
 	DIR *dir = opendir(dirname);
+	if (dir == NULL) {
+		PokeDPrint(POKEMSG_ERR, "opendir('%s') error\n", dirname);
+		return 0;
+	}
 	while((dirEntry = readdir(dir)) != NULL) {
 		if (dirEntry->d_name[0] == 0) break;
 		UIMenu_FileListCache[items].stats = 0;
@@ -501,9 +512,7 @@ void UIMenu_KeyEvent(int key, int press)
 		if (UI_Enabled && UI_Status) {
 			UIMenu_InKey = key;
 		} else {
-			if (key == MINX_KEY_SHOCK) {
-				PokeMini_ShockEvent();
-			} else PokeMini_KeypadEvent(key, 1);
+			PokeMini_KeypadEvent(key, 1);
 		}
 	} else {
 		PokeMini_KeypadEvent(key, 0);
@@ -575,6 +584,14 @@ void UIMenu_EndMessage(int timeout)
 	UIMenu_MsgOffset = 0;
 	UIMenu_MsgCountDw = UIMenu_MsgCountReset1;
 	UIMenu_MsgTimer = timeout;
+}
+
+void UIMenu_RealTimeMessage(TUIRealtimeCB cb)
+{
+	if (cb == NULL) return;
+	UIMenu_Page = UIPAGE_REALTIMETEXT;
+	UIRealtimeCB = cb;
+	UIRealtimeCB(1, NULL);
 }
 
 int UIItems_MainMenuC(int index, int reason)
@@ -705,7 +722,7 @@ int UIItems_MainMenuC(int index, int reason)
 char *UIMenuTxt_Palette[16] = {
 	"Default", "Old", "Black & White", "Green Palette",
 	"Green Vector",	"Red Palette", "Red Vector", "Blue LCD",
-	"LED Backlight", "Girlish", "Blue Palette", "Blue Vector",
+	"LEDBacklight", "Girl Power", "Blue Palette", "Blue Vector",
 	"Sepia", "Inv. B&W", "Custom 1...", "Custom 2..."
 };
 
@@ -793,13 +810,21 @@ int UIItems_OptionsC(int index, int reason)
 	if (reason == UIMENU_LEFT) {
 		switch (index) {
 			case 1: CommandLine.palette = (CommandLine.palette - 1) & 15;
-				PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal);
+				PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 				break;
 			case 2: CommandLine.lcdmode--;
 				if (CommandLine.lcdmode < 0) CommandLine.lcdmode = PRCColorMap ? 3 : 2;
 				break;
 			case 3: CommandLine.lcdfilter--;
 				if (CommandLine.lcdfilter < 0) CommandLine.lcdfilter = 2;
+				break;
+			case 10: CommandLine.lcdcontrast -= 2;
+				if (CommandLine.lcdcontrast < 0) CommandLine.lcdcontrast = 100;
+				PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
+				break;
+			case 11: CommandLine.lcdbright -= 2;
+				if (CommandLine.lcdbright < -100) CommandLine.lcdbright = 100;
+				PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 				break;
 			case 4: if (PokeMini_Flags & POKEMINI_GENSOUND) {
 					CommandLine.sound = !CommandLine.sound;
@@ -834,13 +859,21 @@ int UIItems_OptionsC(int index, int reason)
 	if (reason == UIMENU_RIGHT) {
 		switch (index) {
 			case 1: CommandLine.palette = (CommandLine.palette + 1) & 15;
-				PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal);
+				PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 				break;
 			case 2: CommandLine.lcdmode++;
 				if (CommandLine.lcdmode > (PRCColorMap ? 3 : 2)) CommandLine.lcdmode = 0;
 				break;
 			case 3: CommandLine.lcdfilter++;
 				if (CommandLine.lcdfilter > 2) CommandLine.lcdfilter = 0;
+				break;
+			case 10: CommandLine.lcdcontrast += 2;
+				if (CommandLine.lcdcontrast > 100) CommandLine.lcdcontrast = 0;
+				PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
+				break;
+			case 11: CommandLine.lcdbright += 2;
+				if (CommandLine.lcdbright > 100) CommandLine.lcdbright = -100;
+				PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 				break;
 			case 4: if (PokeMini_Flags & POKEMINI_GENSOUND) {
 					CommandLine.sound = !CommandLine.sound;
@@ -868,7 +901,11 @@ int UIItems_OptionsC(int index, int reason)
 				if (CommandLine.multicart > 2) CommandLine.multicart = 0;
 				break;
 			case 50: CommandLine.synccycles <<= 1;
+#ifdef PERFORMANCE
 				if (CommandLine.synccycles > 512) CommandLine.synccycles = 512;
+#else
+				if (CommandLine.synccycles > 64) CommandLine.synccycles = 64;
+#endif
 				break;
 		}
 	}
@@ -877,6 +914,8 @@ int UIItems_OptionsC(int index, int reason)
 	UIMenu_ChangeItem(UIItems_Options,  1, "Palette: %s", UIMenuTxt_Palette[CommandLine.palette]);
 	UIMenu_ChangeItem(UIItems_Options,  2, "LCD Mode: %s", UIMenuTxt_LCDMode[CommandLine.lcdmode]);
 	UIMenu_ChangeItem(UIItems_Options,  3, "LCD Filter: %s", UIMenuTxt_LCDFilter[CommandLine.lcdfilter]);
+	UIMenu_ChangeItem(UIItems_Options, 10, "Contrast: %i%%", CommandLine.lcdcontrast);
+	UIMenu_ChangeItem(UIItems_Options, 11, "Bright: %i%%", CommandLine.lcdbright);
 	if (PokeMini_Flags & POKEMINI_NOSOUND) {
 		CommandLine.sound = 0;
 		UIMenu_ChangeItem(UIItems_Options,  4, "Sound: Disabled");
@@ -935,7 +974,7 @@ int UIItems_PalEditC(int index, int reason)
 				if (ic == 2) b--;
 			}
 			CommandLine.custompal[ix] = RGB24(b, g, r);
-			PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal);
+			PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 		}
 	}
 	if (reason == UIMENU_RIGHT) {
@@ -955,7 +994,7 @@ int UIItems_PalEditC(int index, int reason)
 				if (ic == 2) b++;
 			}
 			CommandLine.custompal[ix] = RGB24(b, g, r);
-			PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal);
+			PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 		}
 	}
 
@@ -1164,7 +1203,7 @@ int UIMenu_DoStuff(int key)
 					PokeMini_LoadROM(UIMenu_FileListCache[UIMenu_ListOffs + UIMenu_Cur].name);
 					PokeMini_GotoExecDir();
 					UIMenu_Page = UIPAGE_MENUITEMS;
-					UIMenu_Cur = 2;
+					UIMenu_Cur = 1;
 					UI_Status = UI_STATUS_GAME;
 					return 1;
 				} else {
@@ -1186,6 +1225,26 @@ int UIMenu_DoStuff(int key)
 		}
 	}
 
+	// Real-time text
+	if (UIMenu_Page == UIPAGE_REALTIMETEXT) {
+		if (UIMenu_CKeyMod && (key == MINX_KEY_A)) {
+			UIMenu_Page = UIPAGE_MENUITEMS;
+			UIRealtimeCB(0, NULL);
+			return 1;
+		}
+	}
+
+	return 1;
+}
+
+int UIMenu_Process(void)
+{
+	int res;
+	if (UIMenu_InKey) {
+		res = UIMenu_DoStuff(UIMenu_InKey);
+		UIMenu_InKey = 0;
+		return res;
+	}
 	return 1;
 }
 
@@ -1205,11 +1264,6 @@ void UIMenu_Display_32(uint32_t *screen, int pitchW)
 
 	// Animate and do stuff
 	UIMenu_Ani++;
-	if (UIMenu_InKey) {
-		i = UIMenu_DoStuff(UIMenu_InKey);
-		UIMenu_InKey = 0;
-		if (!i) return;
-	}
 
 	// Menu items
 	if (UIMenu_Page == UIPAGE_MENUITEMS) {
@@ -1294,6 +1348,24 @@ void UIMenu_Display_32(uint32_t *screen, int pitchW)
 			UIMenu_Page = UIPAGE_MENUITEMS;
 		}
 	}
+
+	// Real-time text
+	if (UIMenu_Page == UIPAGE_REALTIMETEXT) {
+		// Menu
+		UIDraw_String_32(screen, pitchW, 4, 2, padd, "Real-Time", UI_Font2_Pal32);
+
+		// Refresh text
+		i = 0;
+		if (UIRealtimeCB) {
+			for (i=0; i<UIMenu_Lines - 2; i++) {
+				j = UIRealtimeCB(i, text);
+				if (!j) break;
+				UIDraw_String_32(screen, pitchW, 4, 32+(i*12), padd, text, UI_Font1_Pal32);
+			}
+		}
+
+		UIDraw_String_32(screen, pitchW, 4, 44+(i*12), padd, "Press C+A to go back...", UI_Font2_Pal32);
+	}
 }
 
 void UIMenu_Display_16(uint16_t *screen, int pitchW)
@@ -1312,11 +1384,6 @@ void UIMenu_Display_16(uint16_t *screen, int pitchW)
 
 	// Animate and do stuff
 	UIMenu_Ani++;
-	if (UIMenu_InKey) {
-		i = UIMenu_DoStuff(UIMenu_InKey);
-		UIMenu_InKey = 0;
-		if (!i) return;
-	}
 
 	// Menu items
 	if (UIMenu_Page == UIPAGE_MENUITEMS) {
@@ -1399,6 +1466,24 @@ void UIMenu_Display_16(uint16_t *screen, int pitchW)
 		if (UIMenu_MsgTimer-- <= 0) {
 			UIMenu_Page = UIPAGE_MENUITEMS;
 		}
+	}
+
+	// Real-time text
+	if (UIMenu_Page == UIPAGE_REALTIMETEXT) {
+		// Menu
+		UIDraw_String_16(screen, pitchW, 4, 2, padd, "Real-Time", UI_Font2_Pal16);
+
+		// Refresh text
+		i = 0;
+		if (UIRealtimeCB) {
+			for (i=0; i<UIMenu_Lines - 2; i++) {
+				j = UIRealtimeCB(i, text);
+				if (!j) break;
+				UIDraw_String_16(screen, pitchW, 4, 32+(i*12), padd, text, UI_Font1_Pal16);
+			}
+		}
+
+		UIDraw_String_16(screen, pitchW, 4, 44+(i*12), padd, "Press C+A to go back...", UI_Font2_Pal16);
 	}
 }
 

@@ -116,7 +116,7 @@ window.onload = InstructionSet_CheckItem;
     <p><a href="TOOLS_ImgConv.html">Image Converter</a></p>
     <p><a href="TOOLS_MusicConv.html">Music Converter</a></p>
     <p>Last Updated:<br />
-      <strong>Dec 18, 2013</strong></p>
+      <strong>Jun. 12, 2014</strong></p>
     <br /><br />
     <h3 style="text-align:center"><img src="cpudie.gif" alt="CPU Die" width="73" height="55" /><br />
       Hardware</h3>
@@ -186,7 +186,7 @@ window.onload = InstructionSet_CheckItem;
   <div id="mainContent">
   <!-- InstanceBeginEditable name="Content" -->
     <h1>Tool: Image Converter</h1>
-    <p><strong>Current Version:</strong> 1.2 (Released with PokeMini 0.5.3)</p>
+    <p><strong>Current Version:</strong> 1.3 (Released with PokeMini 0.5.5)</p>
     <p>Convert an image to a data format that can be used on PRC unit</p>
     <h2>Command-Line</h2>
     <p>Input file or conf. file must be declared</p>
@@ -228,7 +228,7 @@ Usage: pokemini_imgconv [options]
   -idofs 0            Map index offset
   -idsize 0           Map index size (0=Unlimited)
   -maxtiles 65536     Maximum number of tiles
-  -q                  Quiet
+  -dt 96              Dark threhold, lower lum. will be full dark<br />  -lt 192             Light threhold, higher lum. will be full light<br />  -q                  Quiet
   -v                  Verbose
 </pre>
 		<p>Supported input images are:</p>
@@ -250,7 +250,7 @@ Usage: pokemini_imgconv [options]
     <table border="1" width="100%" class="smallfnt">
       <tr>
         <th scope="col">Key</th>
-        <th scope="col">Declaration</th>
+        <th scope="col">Example declaration</th>
         <th scope="col">Command-line equivalent</th>
         <th scope="col">Description</th>
       </tr>
@@ -452,6 +452,18 @@ Usage: pokemini_imgconv [options]
         <td>-maxtiles 65536</td>
         <td>Maximum number of tiles</td>
       </tr>
+      <tr>
+        <td><strong title="dt, darkthrehold">dt</strong></td>
+        <td>dt=96</td>
+        <td>-dt 96</td>
+        <td>Dark threhold, lower lum. will be full dark</td>
+      </tr>
+      <tr>
+        <td><strong title="lt, lightthrehold">lt</strong></td>
+        <td>lt=192</td>
+        <td>-lt 192</td>
+        <td>Light threhold, higher lum. will be full light</td>
+      </tr>
     </table>
     <h2>Tiles format</h2>
     <p>Image will be converted to PRC Map format (from top-left to bottom-right), meta-tiles dimension will affect how the graphics are stored</p>
@@ -479,6 +491,6 @@ Usage: pokemini_imgconv [options]
     <span class="clearfloat"></span>
   </div>
 </div>
-<p class="copyright">&copy; 2011-2013 by JustBurn - Hardware documentation copy from Sublab by Team-Pokémé</p>
+<p class="copyright">&copy; 2011-2015 by JustBurn - Hardware documentation copy from Sublab by Team-Pokémé</p>
 </body>
 <!-- InstanceEnd --></html>

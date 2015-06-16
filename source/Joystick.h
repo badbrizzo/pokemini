@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2014  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,6 +28,8 @@
 #define JHAT_DOWN	(0x04)
 #define JHAT_LEFT	(0x08)
 
+typedef void (*TJoystickUpdateCB)(int enable, int deviceid);
+
 // Joystick menu items
 extern TUIMenu_Item UIItems_Joystick[];	
 
@@ -36,6 +38,9 @@ void JoystickSetup(char *platform, int allowdisable, int deadzone, char **bnames
 
 // Enter into the joystick menu
 void JoystickEnterMenu(void);
+
+// Register callback of when the joystick configs get updated
+void JoystickUpdateCallback(TJoystickUpdateCB cb);
 
 // Process joystick buttons packed in bits
 void JoystickBitsEvent(uint32_t pressbits);

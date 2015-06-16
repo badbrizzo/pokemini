@@ -7,10 +7,13 @@
           -------------------
 
   Download lastest version in:
-  http://code.google.com/p/pokemini/
+  http://sourceforge.net/projects/pokemini/
 
   For hardware documentation, visit:
   http://wiki.sublab.net/index.php/Pokemon_Mini
+
+  For all Pokémon-Mini needs:
+  http://www.pokemon-mini.net/
 
 > Libraries
 
@@ -22,13 +25,13 @@
 **************
   Background Music (BGM) and sound effects (SFX) playback
 
-Check PokeMini Debugger documentation for information of how to use
+Check 'PokeMini Debugger' documentation for information of how to use
 
 You're free to use, modify and distribute the source of any library
 
 > License MIT (libraries):
 
-Copyright (C) 2013 by JustBurn
+Copyright (C) 2015 by JustBurn
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

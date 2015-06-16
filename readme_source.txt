@@ -4,9 +4,12 @@
           | |     | | | |
           |_| OKE |_| |_| INI
           -------------------
-             Version 0.5.4
+             Version  0.60
 
   Homebrew-emulator for Pokémon-Mini!
+
+  Latest version can be found in:
+  http://pokemini.sourceforge.net/
 
   For hardware documentation, visit:
   http://wiki.sublab.net/index.php/Pokemon_Mini
@@ -27,6 +30,15 @@
     Go to "platform/pc"
     Do "make clean" and "make", use "make win" on Windows OS
 
+  Win32
+    Visual Studio 2005 or later is required
+    DirectX SDK is required*
+    Go to "platform/win32"
+    Double click "PokeMini.sln"
+    *Note: 
+       June 2010 or later you will need to disable the DirectDraw driver,
+       to disable define "NO_DIRECTDRAW" under "Preprocessor Definitions"
+
   NDS
     devkitPro is required
     Go to "platform/nds"
@@ -35,6 +47,23 @@
   PSP
     devkitPro or PSP Toolchain are required
     Go to "platform/psp"
+    Do "make clean" and "make"
+
+  Dreamcast
+    DevKitDC is required
+    Go to "platform/dreamcast"
+    Do "make clean" and "make"
+
+  GameCube
+    devkitPro is required
+    This is an experimental platform and was never tested!
+    Go to "platform/gamecube"
+    Do "make clean" and "make"
+
+  Wii
+    devkitPro is required
+    This is an experimental platform and was never tested!
+    Go to "platform/wii"
     Do "make clean" and "make"
 
   GP2X Wiz (uWIZ lib)
@@ -50,25 +79,11 @@
     Modify OPENWIZ and HOST on "Makefile" to match your toolkit
     Do "make clean" and "make"
 
-  Dreamcast
-    DevKitDC is required
-    Go to "platform/dreamcast"
-    Do "make clean" and "make"
-
   Dingux
     Dingux toolkit is required
     Go to "platform/dingux"
     Modify DINGUX_TK and HOST on "Makefile" to match your toolkit
     Do "make clean" and "make"
-
-  Win32
-    Visual Studio 2005 or later is required
-    DirectX SDK is required*
-    Go to "platform/win32"
-    Double click "PokeMini.sln"
-    *Note: 
-       June 2010 or later you will need to disable the DirectDraw driver,
-       to disable use "NO_DIRECTDRAW" under "Preprocessor Definitions"
 
 > Compiling Tools Source-Code:
 

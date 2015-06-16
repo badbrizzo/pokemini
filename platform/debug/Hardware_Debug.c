@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -42,8 +42,8 @@ int PMD_MessageStop = 1;
 uint8_t *PMD_TrapPoints;	// Trap points for breakpoint & watchpoint:
 				// &1 = Breakpoint, &16 = Watchpoint Read, &32 = Watchpoint Write
 
-uint32_t TRACAddr[256];		// 0xFFFFFFFF == Invalid
-uint8_t TRACPoint = 0;
+uint32_t TRACAddr[TRACECODE_LENGTH];	// 0xFFFFFFFF == Invalid
+int TRACPoint = 0;
 
 int CYCTmr1Ena = 0;		// Cycles Timer 1
 uint32_t CYCTmr1Cnt = 0;
@@ -123,7 +123,7 @@ void PMHD_FreeResources(void)
 void PMHD_Reset(int hardreset)
 {
 	int i;
-	for (i=0; i<256; i++) TRACAddr[i] = 0xFFFFFFFF;
+	for (i=0; i<TRACECODE_LENGTH; i++) TRACAddr[i] = 0xFFFFFFFF;
 	TRACPoint = 0;
 }
 
@@ -131,7 +131,8 @@ static inline int PokeMini_BreakPointTest(int cylc)
 {
 	uint32_t pmaddr = PhysicalPC() & PM_ROM_Mask;
 	TRACAddr[TRACPoint] = pmaddr;
-	TRACPoint = (TRACPoint - 1) & 255;
+	TRACPoint--;
+	if (TRACPoint < 0) TRACPoint = TRACECODE_LENGTH - 1;
 	if (CYCTmr1Ena) CYCTmr1Cnt += cylc;
 	if (CYCTmr2Ena) CYCTmr2Cnt += cylc;
 	if (CYCTmr3Ena) CYCTmr3Cnt += cylc;
@@ -144,26 +145,24 @@ static inline int PokeMini_BreakPointTest(int cylc)
 // Emulate single instruction, return cycles ran
 int PokeMini_EmulateStep(void)
 {
-	int cylc;
-
 	if (RequireSoundSync) {
-		if (StallCPU) cylc = StallCycles;
-		else cylc = MinxCPU_Exec();
-		MinxTimers_Sync(cylc);
-		MinxPRC_Sync(cylc);
-		MinxAudio_Sync(cylc);
+		if (StallCPU) PokeHWCycles = StallCycles;
+		else PokeHWCycles = MinxCPU_Exec();
+		MinxTimers_Sync();
+		MinxPRC_Sync();
+		MinxAudio_Sync();
 	} else {
-		if (StallCPU) cylc = StallCycles;
-		else cylc = MinxCPU_Exec();
-		MinxTimers_Sync(cylc);
-		MinxPRC_Sync(cylc);
+		if (StallCPU) PokeHWCycles = StallCycles;
+		else PokeHWCycles = MinxCPU_Exec();
+		MinxTimers_Sync();
+		MinxPRC_Sync();
 	}
-	if (PokeMini_BreakPointTest(cylc)) {
+	if (PokeMini_BreakPointTest(PokeHWCycles)) {
 		set_emumode(EMUMODE_STOP, 0);
 		BreakpointReport();
 	}
 
-	return cylc;
+	return PokeHWCycles;
 }
 
 // Skip current instruction, return cycles skipped
@@ -182,19 +181,17 @@ int PokeMini_EmulateStepSkip(void)
 // Emulate X cycles, return remaining
 int PokeMini_EmulateCycles(int lcylc)
 {
-	int cylc;
-
 	PMD_TrapFound = 0;
 
 	if (RequireSoundSync) {
 		while (lcylc > 0) {
-			if (StallCPU) cylc = StallCycles;
-			else cylc = MinxCPU_Exec();
-			MinxTimers_Sync(cylc);
-			MinxPRC_Sync(cylc);
-			MinxAudio_Sync(cylc);
-			lcylc -= cylc;
-			if (PokeMini_BreakPointTest(cylc)) {
+			if (StallCPU) PokeHWCycles = StallCycles;
+			else PokeHWCycles = MinxCPU_Exec();
+			MinxTimers_Sync();
+			MinxPRC_Sync();
+			MinxAudio_Sync();
+			lcylc -= PokeHWCycles;
+			if (PokeMini_BreakPointTest(PokeHWCycles)) {
 				PMD_TrapFound = 1;
 				BreakpointReport();
 			}
@@ -205,12 +202,12 @@ int PokeMini_EmulateCycles(int lcylc)
 		}
 	} else {
 		while (lcylc > 0) {
-			if (StallCPU) cylc = StallCycles;
-			else cylc = MinxCPU_Exec();
-			MinxTimers_Sync(cylc);
-			MinxPRC_Sync(cylc);
-			lcylc -= cylc;
-			if (PokeMini_BreakPointTest(cylc)) {
+			if (StallCPU) PokeHWCycles = StallCycles;
+			else PokeHWCycles = MinxCPU_Exec();
+			MinxTimers_Sync();
+			MinxPRC_Sync();
+			lcylc -= PokeHWCycles;
+			if (PokeMini_BreakPointTest(PokeHWCycles)) {
 				PMD_TrapFound = 1;
 				BreakpointReport();
 			}
@@ -228,58 +225,58 @@ int PokeMini_EmulateCycles(int lcylc)
 static int PokeMini_EmulateFrameRun;
 int PokeMini_EmulateFrame(void)
 {
-	int cylc, lcylc = 0;
+	int lcylc = 0;
 
 	PMD_TrapFound = 0;
 	PokeMini_EmulateFrameRun = 1;
 
 	if (RequireSoundSync) {
 		while (PokeMini_EmulateFrameRun) {
-			cylc = 0;
-			while (cylc < CommandLine.synccycles) {
-				if (StallCPU) cylc += StallCycles;
+			PokeHWCycles = 0;
+			while (PokeHWCycles < CommandLine.synccycles) {
+				if (StallCPU) PokeHWCycles += StallCycles;
 				else {
-					cylc += MinxCPU_Exec();
-					if (PokeMini_BreakPointTest(cylc)) {
+					PokeHWCycles += MinxCPU_Exec();
+					if (PokeMini_BreakPointTest(PokeHWCycles)) {
 						PMD_TrapFound = 1;
 						BreakpointReport();
 					}
 					if (PMD_TrapFound) {
 						set_emumode(EMUMODE_STOP, 0);
-						MinxTimers_Sync(cylc);
-						MinxPRC_Sync(cylc);
-						MinxAudio_Sync(cylc);
-						return lcylc + cylc;
+						MinxTimers_Sync();
+						MinxPRC_Sync();
+						MinxAudio_Sync();
+						return lcylc + PokeHWCycles;
 					}
 				}
 			}
-			MinxTimers_Sync(cylc);
-			MinxPRC_Sync(cylc);
-			MinxAudio_Sync(cylc);
-			lcylc += cylc;
+			MinxTimers_Sync();
+			MinxPRC_Sync();
+			MinxAudio_Sync();
+			lcylc += PokeHWCycles;
 		}
 	} else {
 		while (PokeMini_EmulateFrameRun) {
-			cylc = 0;
-			while (cylc < CommandLine.synccycles) {
-				if (StallCPU) cylc += StallCycles;
+			PokeHWCycles = 0;
+			while (PokeHWCycles < CommandLine.synccycles) {
+				if (StallCPU) PokeHWCycles += StallCycles;
 				else {
-					cylc += MinxCPU_Exec();
-					if (PokeMini_BreakPointTest(cylc)) {
+					PokeHWCycles += MinxCPU_Exec();
+					if (PokeMini_BreakPointTest(PokeHWCycles)) {
 						PMD_TrapFound = 1;
 						BreakpointReport();
 					}
 					if (PMD_TrapFound) {
 						set_emumode(EMUMODE_STOP, 0);
-						MinxTimers_Sync(cylc);
-						MinxPRC_Sync(cylc);
-						return lcylc + cylc;
+						MinxTimers_Sync();
+						MinxPRC_Sync();
+						return lcylc + PokeHWCycles;
 					}
 				}
 			}
-			MinxTimers_Sync(cylc);
-			MinxPRC_Sync(cylc);
-			lcylc += cylc;
+			MinxTimers_Sync();
+			MinxPRC_Sync();
+			lcylc += PokeHWCycles;
 		}
 	}
 

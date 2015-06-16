@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -253,7 +253,10 @@ void FixSymbolID(char *filename)
 {
 	int i;
 	for (i = strlen(filename)-1; i >= 0; i--) {
-		if ((filename[i] < '0') || (filename[i] > '9') || (filename[i] != '_')) {
+		if (((filename[i] < '0') || (filename[i] > '9')) &&
+		    ((filename[i] < 'a') || (filename[i] > 'z')) &&
+		    ((filename[i] < 'A') || (filename[i] > 'Z')) &&
+		    (filename[i] != '_')) {
 			filename[i] = '_';
 		}
 	}
@@ -273,10 +276,34 @@ void ClearCtrlChars(char *s, int len)
 int atoi_Ex(const char *str, int defnum)
 {
 	int num = defnum;
-	if (str[0] == '#') sscanf(&str[1], "%x", &num);
-	else if (str[0] == '$') sscanf(&str[1], "%x", &num);
-	else sscanf(str, "%i", &num);
+	int res = 0;
+	int sign = 0;
+	if (strlen(str) >= 2 && str[0] == '-') {
+		sign = 1;
+		str++;
+	}
+	if (strlen(str) >= 2 && str[0] == '#') res = sscanf(&str[1], "%x", &num);
+	else if (strlen(str) >= 2 && str[0] == '$') res = sscanf(&str[1], "%x", &num);
+	else res = sscanf(str, "%i", &num);
+	if (res != 1) return defnum;
+	if (sign) num = -num;
 	return num;
+}
+
+// atoi() that support hex numbers, return false on failure
+int atoi_Ex2(const char *str, int *outnum)
+{
+	int res = 0;
+	int sign = 0;
+	if (strlen(str) >= 2 && str[0] == '-') {
+		sign = 1;
+		str++;
+	}
+	if (strlen(str) >= 2 && str[0] == '#') res = sscanf(&str[1], "%x", outnum);
+	else if (strlen(str) >= 2 && str[0] == '$') res = sscanf(&str[1], "%x", outnum);
+	else res = sscanf(str, "%i", outnum);
+	if (res == 1 && sign) *outnum = -*outnum;
+	return res;
 }
 
 // atof() that return float and support default on failure

@@ -82,13 +82,13 @@ DEPENDSHDR = $(addprefix $(POKEROOT), $(DEPENDS))
 INCLUDE = $(foreach inc, $(INCDIRS), -I$(POKEROOT)$(inc))
 VPATH = $(addprefix $(POKEROOT),$(INCDIRS))
 
-.PHONY: all clean scamble run
+.PHONY: all clean scramble run
 
 all: $(BUILD) $(TARGET)
 
 include $(KOS_BASE)/Makefile.rules
 
-KOS_LOCAL_CFLAGS = -O -Wall $(INCLUDE) -I. -DFS_DC -DPERFORMANCE
+KOS_LOCAL_CFLAGS = -O -Wall $(INCLUDE) -I. -I $(KOS_BASE)/kernel/arch/dreamcast/sound -DFS_DC -DPERFORMANCE
 KOS_LOCAL_LDFLAGS = -O $(LIBS)
 
 $(BUILD):

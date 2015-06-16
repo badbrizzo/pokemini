@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ typedef struct {
 } TMinxLCD;
 
 #ifndef MINX_DIRTYPIX
-#define MINX_DIRTYPIX	1
+#define MINX_DIRTYPIX	4
 #endif
 
 #ifndef MINX_DIRTYSCR
@@ -52,7 +52,7 @@ typedef struct {
 // Export LCD state
 extern TMinxLCD MinxLCD;
 
-// LCD dirty status (1 = graphics changed)
+// LCD dirty status (1+ = graphics changed)
 extern int LCDDirty;
 
 // LCD Data (132 x 65 x 1bpp), Pitch of 256 bytes

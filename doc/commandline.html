@@ -116,7 +116,7 @@ window.onload = InstructionSet_CheckItem;
     <p><a href="TOOLS_ImgConv.html">Image Converter</a></p>
     <p><a href="TOOLS_MusicConv.html">Music Converter</a></p>
     <p>Last Updated:<br />
-      <strong>Dec 18, 2013</strong></p>
+      <strong>Jun. 12, 2014</strong></p>
     <br /><br />
     <h3 style="text-align:center"><img src="cpudie.gif" alt="CPU Die" width="73" height="55" /><br />
       Hardware</h3>
@@ -212,11 +212,11 @@ PokeMini [Options] rom.min</p>
       </tr>
       <tr>
         <td>-eepromshare<br /></td>
-        <td>Share EEPROM to all ROMs (default)</td>
+        <td>Share EEPROM to all ROMs</td>
       </tr>
       <tr>
         <td>-noeepromshare<br /></td>
-        <td>Each ROM will use individual EEPROM</td>
+        <td>Individual EEPROM for each ROM (def)</td>
       </tr>
       <tr>
         <td>-nostate<br /></td>
@@ -252,7 +252,7 @@ PokeMini [Options] rom.min</p>
       </tr>
       <tr>
         <td>-soundemulate</td>
-        <td>Use sound circuit emulation<br /></td>
+        <td>Emulate sound circuit<br /></td>
       </tr>
       <tr>
         <td>-sounddirectpwm</td>
@@ -288,7 +288,7 @@ PokeMini [Options] rom.min</p>
       </tr>
       <tr>
         <td>-analog<br /></td>
-        <td>LCD Mode: Pretend real LCD (default)</td>
+        <td>LCD Mode: Pretend real LCD (def)</td>
       </tr>
       <tr>
         <td>-fullbattery</td>
@@ -319,14 +319,6 @@ PokeMini [Options] rom.min</p>
         <td>Set joystick ID</td>
       </tr>
       <tr>
-        <td>-nomulticart<br /></td>
-        <td>Disable multicart support (def)</td>
-      </tr>
-      <tr>
-        <td>-multicart 0<br /></td>
-        <td>Multicart support (0 to 2)</td>
-      </tr>
-      <tr>
         <td>-custom1light 0xFFFFFF</td>
         <td>Palette Custom 1 Light</td>
       </tr>
@@ -345,6 +337,18 @@ PokeMini [Options] rom.min</p>
       <tr>
         <td>-synccycles 8</td>
         <td>Number of cycles per hardware sync.</td>
+      </tr>
+      <tr>
+        <td>-multicart 0<br /></td>
+        <td>Multicart type (0 to 2)</td>
+      </tr>
+      <tr>
+        <td>-lcdcontrast 64<br /></td>
+        <td>LCD contrast boost in percent</td>
+      </tr>
+      <tr>
+        <td>-lcdbright 0<br /></td>
+        <td>LCD brightness offset in percent</td>
       </tr>
     </table>
     <p><em>Only on SDL platform:</em></p>
@@ -397,6 +401,6 @@ PokeMini [Options] rom.min</p>
     <span class="clearfloat"></span>
   </div>
 </div>
-<p class="copyright">&copy; 2011-2013 by JustBurn - Hardware documentation copy from Sublab by Team-Pokémé</p>
+<p class="copyright">&copy; 2011-2015 by JustBurn - Hardware documentation copy from Sublab by Team-Pokémé</p>
 </body>
 <!-- InstanceEnd --></html>

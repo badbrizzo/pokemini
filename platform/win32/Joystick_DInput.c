@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2014  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 */
 
 #include <windows.h>
+#define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
 
 #include "Joystick_DInput.h"
@@ -114,7 +115,7 @@ char *Joystick_DInput_JoystickName(int index)
 int Joystick_DInput_JoystickOpen(int index)
 {
 	DWORD dwAxes[2] = {DIJOFS_X, DIJOFS_Y};
-	LONG lDirection[2] = {0, 0};
+	LONG lDirection[2] = {10000, 10000};
 	DICONSTANTFORCE diConstantForce;
 	DIEFFECT diEffect;
 
@@ -147,11 +148,13 @@ int Joystick_DInput_JoystickOpen(int index)
 	IDirectInputDevice8_EnumEffects(pDIDev, Joystick_DInput_EnumEffectsProc, NULL, DIEFT_CONSTANTFORCE);
 	if (Joystick_HasFF) {
 		// FF Constant Force
-		diConstantForce.lMagnitude = DI_FFNOMINALMAX; 
+		ZeroMemory(&diConstantForce, sizeof(DICONSTANTFORCE));
+		diConstantForce.lMagnitude = DI_FFNOMINALMAX;
 
 		// FF Effect
+		ZeroMemory(&diEffect, sizeof(DIEFFECT));
 		diEffect.dwSize = sizeof(DIEFFECT); 
-		diEffect.dwFlags = DIEFF_POLAR | DIEFF_OBJECTOFFSETS; 
+		diEffect.dwFlags = DIEFF_CARTESIAN | DIEFF_OBJECTOFFSETS; 
 		diEffect.dwDuration = INFINITE;
 		diEffect.dwSamplePeriod = 0;
 		diEffect.dwGain = DI_FFNOMINALMAX;

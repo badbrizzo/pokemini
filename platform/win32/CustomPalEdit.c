@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -126,11 +126,11 @@ LRESULT CALLBACK CustomPalEdit_DlgProc(HWND hWndDlg, UINT Msg, WPARAM wParam, LP
 			switch(wParam) {
 				case IDOK:
 					CopyMemory(CommandLine.custompal, custompal, sizeof(CommandLine.custompal));
-					PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal);
+					PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 					EndDialog(hWndDlg, 1);
 					return TRUE;
 				case IDCANCEL:
-					PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal);
+					PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 					EndDialog(hWndDlg, 0);
 					return TRUE;
 			}
@@ -244,7 +244,7 @@ LRESULT CALLBACK CustomPalEdit_DlgProc(HWND hWndDlg, UINT Msg, WPARAM wParam, LP
 				    UpdateWindow(GetDlgItem(hWndDlg, IDC_CUSTOM2DARKP));
 					break;
 			}
-			PokeMini_VideoPalette_Index(CommandLine.palette, custompal);
+			PokeMini_VideoPalette_Index(CommandLine.palette, custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 			render_dummyframe();
 			break;
 	}
@@ -255,5 +255,5 @@ LRESULT CALLBACK CustomPalEdit_DlgProc(HWND hWndDlg, UINT Msg, WPARAM wParam, LP
 void CustomPalEdit_Dialog(HINSTANCE hInst, HWND hParentWnd)
 {
 	CustomPalEdit_Register(hInst);
-	DialogBox(hInst, MAKEINTRESOURCE(IDD_CUSTOMPALEDIT), hParentWnd, CustomPalEdit_DlgProc);
+	DialogBox(hInst, MAKEINTRESOURCE(IDD_CUSTOMPALEDIT), hParentWnd, (DLGPROC)CustomPalEdit_DlgProc);
 }

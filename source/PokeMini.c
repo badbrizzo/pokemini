@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -100,6 +100,9 @@ void (*PokeMini_OnReset)(int hardreset) = NULL;
 int (*PokeMini_CustomLoadEEPROM)(const char *filename) = NULL;
 int (*PokeMini_CustomSaveEEPROM)(const char *filename) = NULL;
 
+// Number of cycles to process on hardware
+int PokeHWCycles = 0;
+
 // Create emulator and all interfaces
 int PokeMini_Create(int flags, int soundfifo)
 {
@@ -178,12 +181,6 @@ void PokeMini_ApplyChanges()
 void PokeMini_KeypadEvent(uint8_t key, int pressed)
 {
 	MinxIO_Keypad(key, pressed);
-}
-
-// User shake the Pokemon-Mini
-void PokeMini_ShockEvent()
-{
-	MinxIO_Shock();
 }
 
 // Low power battery emulation
@@ -383,7 +380,9 @@ int PokeMini_SyncHostTime()
 	if (CommandLine.updatertc == 2) {
 		time_t tim = time(NULL);
 		struct tm *now = localtime(&tim);
-		MinxIO_SetTimeStamp(now->tm_year % 100, now->tm_mon, now->tm_mday, now->tm_hour, now->tm_min, now->tm_sec);
+		MinxIO_SetTimeStamp(now->tm_year % 100, now->tm_mon+1, now->tm_mday, now->tm_hour, now->tm_min, now->tm_sec);
+		PMR_SEC_CTRL = 0x01;
+		MinxTimers.SecTimerCnt = 0;
 		return 1;
 	}
 #endif
@@ -697,9 +696,7 @@ int PokeMini_LoadSSFile(const char *statefile)
 	}
 
 	// Syncronize with host time
-	if (PokeMini_SyncHostTime()) {
-		MinxTimers.SecTimerCnt = 0x000000;
-	}
+	PokeMini_SyncHostTime();
 
 	// Callback
 	if (PokeMini_OnLoadStateFile) PokeMini_OnLoadStateFile(statefile, 1);

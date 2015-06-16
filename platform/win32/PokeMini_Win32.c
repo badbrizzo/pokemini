@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 #include "VideoRend.h"
 #include "AudioRend.h"
 #include "CustomPalEdit.h"
+#include "CustomContrast.h"
+#include "CustomBright.h"
 #include "DefineInput.h"
 #include "Joystick_DInput.h"
 
@@ -56,14 +58,14 @@ const char *AboutTxt = "PokeMini " PokeMini_Version " Win32"
 	"IRC EFNET!\n\n"
 	"Please check readme.txt\n\n"
 	"For latest version visit:\n"
-	"http://code.google.com/p/pokemini/\n\n"
-	"Google Play fee donated by MEGA\n"
+	"http://pokemini.sourceforge.net/\n\n"
+	"Special thanks to:\n"
 	"Museum of Electronic Games & Art\n"
 	"http://m-e-g-a.org\n"
 	"MEGA supports preservation\n"
 	"projects of digital art & culture\n";
 
-const char *WebsiteTxt = "http://code.google.com/p/pokemini/";
+const char *WebsiteTxt = "http://pokemini.sourceforge.net/";
 
 // Variables
 volatile int emumodeE = EMUMODE_STOP;	// Emulation thread
@@ -790,7 +792,7 @@ void Menu_Options_Palette(int index)
 {
 	if (CommandLine.palette != index) {
 		CommandLine.palette = index;
-		PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal);
+		PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 		render_dummyframe();
 	}
 }
@@ -811,6 +813,24 @@ void Menu_Options_LCDFilter(int index)
 	if (CommandLine.lcdfilter != index) {
 		CommandLine.lcdfilter = index;
 		PokeMini_ApplyChanges();
+	}
+}
+
+void Menu_Options_LCDContrast(int index)
+{
+	if (CommandLine.lcdcontrast != index) {
+		CommandLine.lcdcontrast = index;
+		PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
+		render_dummyframe();
+	}
+}
+
+void Menu_Options_LCDBright(int index)
+{
+	if (CommandLine.lcdbright != index) {
+		CommandLine.lcdbright = index;
+		PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
+		render_dummyframe();
 	}
 }
 
@@ -957,7 +977,7 @@ void Menu_Help_CommandLine(void)
 	MsgBox.lpszText = buffer;
 	MsgBox.lpszCaption = "Command line";
 	MsgBox.dwStyle = MB_USERICON;
-	MsgBox.lpszIcon = (LPCSTR)IDI_POKEMINI;
+	MsgBox.lpszIcon = MAKEINTRESOURCE(IDI_ICON1);
 	MsgBox.dwContextHelpId = 0;
 	MsgBox.lpfnMsgBoxCallback = NULL;
 	MsgBox.dwLanguageId = LANG_ENGLISH;
@@ -976,7 +996,7 @@ void Menu_Help_About(void)
 	MsgBox.lpszText = AboutTxt;
 	MsgBox.lpszCaption = "About";
 	MsgBox.dwStyle = MB_USERICON;
-	MsgBox.lpszIcon = (LPCSTR)IDI_POKEMINI;
+	MsgBox.lpszIcon = MAKEINTRESOURCE(IDI_ICON1);
 	MsgBox.dwContextHelpId = 0;
 	MsgBox.lpfnMsgBoxCallback = NULL;
 	MsgBox.dwLanguageId = LANG_ENGLISH;
@@ -1021,6 +1041,36 @@ void update_options(void)
 	CheckMenuItem(hMainMenu, ID_LCDFILTER_NONE, (CommandLine.lcdfilter == 0) ? MF_CHECKED : MF_UNCHECKED);
 	CheckMenuItem(hMainMenu, ID_LCDFILTER_MATRIX, (CommandLine.lcdfilter == 1) ? MF_CHECKED : MF_UNCHECKED);
 	CheckMenuItem(hMainMenu, ID_LCDFILTER_SCANLINE, (CommandLine.lcdfilter == 2) ? MF_CHECKED : MF_UNCHECKED);
+	CheckMenuItem(hMainMenu, ID_LCDCONTRAST_DEFAULT, (CommandLine.lcdcontrast == 64) ? MF_CHECKED : MF_UNCHECKED);
+	CheckMenuItem(hMainMenu, ID_LCDCONTRAST_LOWEST, (CommandLine.lcdcontrast == 0) ? MF_CHECKED : MF_UNCHECKED);
+	CheckMenuItem(hMainMenu, ID_LCDCONTRAST_LOW, (CommandLine.lcdcontrast == 25) ? MF_CHECKED : MF_UNCHECKED);
+	CheckMenuItem(hMainMenu, ID_LCDCONTRAST_MEDIUM, (CommandLine.lcdcontrast == 50) ? MF_CHECKED : MF_UNCHECKED);
+	CheckMenuItem(hMainMenu, ID_LCDCONTRAST_HIGH, (CommandLine.lcdcontrast == 75) ? MF_CHECKED : MF_UNCHECKED);
+	CheckMenuItem(hMainMenu, ID_LCDCONTRAST_HIGHEST, (CommandLine.lcdcontrast == 100) ? MF_CHECKED : MF_UNCHECKED);
+	if ((CommandLine.lcdcontrast == 64) ||
+		(CommandLine.lcdcontrast == 0) ||
+		(CommandLine.lcdcontrast == 25) ||
+		(CommandLine.lcdcontrast == 50) ||
+		(CommandLine.lcdcontrast == 75) ||
+		(CommandLine.lcdcontrast == 100)) {
+		CheckMenuItem(hMainMenu, ID_LCDCONTRAST_CUSTOM, MF_UNCHECKED);
+	} else {
+		CheckMenuItem(hMainMenu, ID_LCDCONTRAST_CUSTOM, MF_CHECKED);
+	}
+	CheckMenuItem(hMainMenu, ID_LCDBRIGHT_DEFAULT, (CommandLine.lcdbright == 0) ? MF_CHECKED : MF_UNCHECKED);
+	CheckMenuItem(hMainMenu, ID_LCDBRIGHT_LIGHTER, (CommandLine.lcdbright == 24) ? MF_CHECKED : MF_UNCHECKED);
+	CheckMenuItem(hMainMenu, ID_LCDBRIGHT_LIGHT, (CommandLine.lcdbright == 12) ? MF_CHECKED : MF_UNCHECKED);
+	CheckMenuItem(hMainMenu, ID_LCDBRIGHT_DARK, (CommandLine.lcdbright == -12) ? MF_CHECKED : MF_UNCHECKED);
+	CheckMenuItem(hMainMenu, ID_LCDBRIGHT_DARKER, (CommandLine.lcdbright == -24) ? MF_CHECKED : MF_UNCHECKED);
+	if ((CommandLine.lcdbright == 0) ||
+		(CommandLine.lcdbright == 24) ||
+		(CommandLine.lcdbright == 12) ||
+		(CommandLine.lcdbright == -12) ||
+		(CommandLine.lcdbright == -24)) {
+		CheckMenuItem(hMainMenu, ID_LCDBRIGHT_CUSTOM, MF_UNCHECKED);
+	} else {
+		CheckMenuItem(hMainMenu, ID_LCDBRIGHT_CUSTOM, MF_CHECKED);
+	}
 	CheckMenuItem(hMainMenu, ID_RUMBLELEVEL_0, (CommandLine.rumblelvl == 0) ? MF_CHECKED : MF_UNCHECKED);
 	CheckMenuItem(hMainMenu, ID_RUMBLELEVEL_1, (CommandLine.rumblelvl == 1) ? MF_CHECKED : MF_UNCHECKED);
 	CheckMenuItem(hMainMenu, ID_RUMBLELEVEL_2, (CommandLine.rumblelvl == 2) ? MF_CHECKED : MF_UNCHECKED);
@@ -1113,7 +1163,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdL
 	setup_screen(1);
 
 	// Initialize audio here
-	if (!AudioRend->Init(hMainWnd, 44100, 16, 1, SOUNDBUFFER, emulatorsound)) {
+	if (!AudioRend->Init(hMainWnd, 44100, 16, 1, SOUNDBUFFER, (AudioRend_Callback)emulatorsound)) {
 		MessageBox(NULL, "Couldn't initialize sound!\nUsing no sound.", "Error", MB_ICONERROR);
 		AudioEnabled = 0;
 	} else {
@@ -1134,7 +1184,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdL
 
 	// Setup palette and LCD mode
 	PokeMini_VideoPalette_Init(PokeMini_BGR16, 1);
-	PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal);
+	PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 	PokeMini_ApplyChanges();
 
 	// Sound, keyboard mapping and options
@@ -1267,12 +1317,12 @@ void PokeMiniW_RegisterClasses(HINSTANCE hInstance)
 	wcex.cbClsExtra     = 0;
 	wcex.cbWndExtra     = 0;
 	wcex.hInstance      = hInstance;
-	wcex.hIcon          = LoadIcon(hInstance, (LPCTSTR)IDI_POKEMINI);
+	wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON1));
 	wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
 	wcex.hbrBackground  = NULL;
 	wcex.lpszMenuName   = (LPCSTR)IDR_MENU;
 	wcex.lpszClassName  = "POKEMINIWIN";
-	wcex.hIconSm        = LoadIcon(wcex.hInstance, (LPCTSTR)IDI_SMALL);
+	wcex.hIconSm        = (HICON)LoadImage(wcex.hInstance, MAKEINTRESOURCE(IDI_ICON1), IMAGE_ICON, 16, 16, LR_SHARED);
 	RegisterClassEx(&wcex);
 }
 
@@ -1537,6 +1587,58 @@ LRESULT CALLBACK PokeMiniW_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 					break;
 				case ID_LCDFILTER_SCANLINE:
 					Menu_Options_LCDFilter(2);
+					update_options();
+					break;
+				case ID_LCDCONTRAST_DEFAULT:
+					Menu_Options_LCDContrast(64);
+					update_options();
+					break;
+				case ID_LCDCONTRAST_LOWEST:
+					Menu_Options_LCDContrast(0);
+					update_options();
+					break;
+				case ID_LCDCONTRAST_LOW:
+					Menu_Options_LCDContrast(25);
+					update_options();
+					break;
+				case ID_LCDCONTRAST_MEDIUM:
+					Menu_Options_LCDContrast(50);
+					update_options();
+					break;
+				case ID_LCDCONTRAST_HIGH:
+					Menu_Options_LCDContrast(75);
+					update_options();
+					break;
+				case ID_LCDCONTRAST_HIGHEST:
+					Menu_Options_LCDContrast(100);
+					update_options();
+					break;
+				case ID_LCDCONTRAST_CUSTOM:
+					CustomContrast_Dialog(hInst, hMainWnd);
+					update_options();
+					break;
+				case ID_LCDBRIGHT_DEFAULT:
+					Menu_Options_LCDBright(0);
+					update_options();
+					break;
+				case ID_LCDBRIGHT_LIGHTER:
+					Menu_Options_LCDBright(24);
+					update_options();
+					break;
+				case ID_LCDBRIGHT_LIGHT:
+					Menu_Options_LCDBright(12);
+					update_options();
+					break;
+				case ID_LCDBRIGHT_DARK:
+					Menu_Options_LCDBright(-12);
+					update_options();
+					break;
+				case ID_LCDBRIGHT_DARKER:
+					Menu_Options_LCDBright(-24);
+					update_options();
+					break;
+				case ID_LCDBRIGHT_CUSTOM:
+					CustomBright_Dialog(hInst, hMainWnd);
 					update_options();
 					break;
 				case ID_RUMBLELEVEL_0:

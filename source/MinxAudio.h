@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -90,7 +90,7 @@ void MinxAudio_ChangeEngine(int engine);
 
 void MinxAudio_ChangeFilter(int piezo);
 
-void MinxAudio_Sync(int cycles);
+void MinxAudio_Sync(void);
 
 uint8_t MinxAudio_ReadReg(uint8_t reg);
 
@@ -113,6 +113,10 @@ int16_t MinxAudio_PiezoFilter(int32_t Sample);
 void MinxAudio_GetSamplesU8(uint8_t *soundout, int numsamples);
 
 void MinxAudio_GetSamplesS16(int16_t *soundout, int numsamples);
+
+void MinxAudio_GetSamplesU8Ch(uint8_t *soundout, int numsamples, int channels);
+
+void MinxAudio_GetSamplesS16Ch(int16_t *soundout, int numsamples, int channels);
 
 int MinxAudio_SyncWithAudio(void);
 

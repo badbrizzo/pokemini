@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -160,6 +160,9 @@ void menuloop()
 		// Slowdown to approx. 60fps
 		SDL_Delay(16);
 
+		// Process UI
+		UIMenu_Process();
+
 		// Screen rendering
 		SDL_FillRect(screen, NULL, 0);
 		if (SDL_LockSurface(screen) == 0) {
@@ -253,7 +256,7 @@ int main(int argc, char **argv)
 
 	// Setup palette and LCD mode
 	PokeMini_VideoPalette_Init(PokeMini_BGR16, 1);
-	PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal);
+	PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 	PokeMini_ApplyChanges();
 
 	// Load stuff

@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -87,13 +87,13 @@ int FileAssociation_DoRegister(void)
 
 	// HKEY_CLASSES_ROOT\PokeMini_min\DefaultIcon
 	if (RegCreateKeyEx(HKEY_CLASSES_ROOT, "PokeMini_min\\DefaultIcon", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &key, NULL) != ERROR_SUCCESS) return 0;
-	sprintf(tmp, "\"%s\",2", argv0);
+	sprintf(tmp, "\"%s\",1", argv0);
 	if (RegSetValueExA(key, NULL, 0, REG_SZ, (LPBYTE)tmp, (DWORD)strlen(tmp)+1) != ERROR_SUCCESS) return 0;
 	RegCloseKey(key);
 
 	// HKEY_CLASSES_ROOT\PokeMini_minc\DefaultIcon
 	if (RegCreateKeyEx(HKEY_CLASSES_ROOT, "PokeMini_minc\\DefaultIcon", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &key, NULL) != ERROR_SUCCESS) return 0;
-	sprintf(tmp, "\"%s\",3", argv0);
+	sprintf(tmp, "\"%s\",2", argv0);
 	if (RegSetValueExA(key, NULL, 0, REG_SZ, (LPBYTE)tmp, (DWORD)strlen(tmp)+1) != ERROR_SUCCESS) return 0;
 	RegCloseKey(key);
 
@@ -132,7 +132,7 @@ int FileAssociation_DoRegister(void)
 	RegCloseKey(key);
 	RegCloseKey(key2);
 
-	// HKEY_CLASSES_ROOT\PokeMini_min?\shell\edit\command
+	// HKEY_CLASSES_ROOT\PokeMini_min?\shell\paint\command
 	if (RegCreateKeyEx(HKEY_CLASSES_ROOT, "PokeMini_min\\shell\\paint\\command", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &key, NULL) != ERROR_SUCCESS) return 0;
 	if (RegCreateKeyEx(HKEY_CLASSES_ROOT, "PokeMini_minc\\shell\\paint\\command", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &key2, NULL) != ERROR_SUCCESS) return 0;
 	strcpy(tmp2, argv0);
@@ -150,8 +150,10 @@ int FileAssociation_DoUnregister(void)
 {
 	int success = 2;
 
-	if (RegDeleteKey(HKEY_CLASSES_ROOT, "PokeMini_minc\\shell\\edit\\command")) success = 0;
-	if (RegDeleteKey(HKEY_CLASSES_ROOT, "PokeMini_minc\\shell\\edit")) success = 0;
+	if (RegDeleteKey(HKEY_CLASSES_ROOT, "PokeMini_min\\shell\\paint\\command")) success = 0;
+	if (RegDeleteKey(HKEY_CLASSES_ROOT, "PokeMini_minc\\shell\\paint\\command")) success = 0;
+	if (RegDeleteKey(HKEY_CLASSES_ROOT, "PokeMini_min\\shell\\paint")) success = 0;
+	if (RegDeleteKey(HKEY_CLASSES_ROOT, "PokeMini_minc\\shell\\paint")) success = 0;
 	if (RegDeleteKey(HKEY_CLASSES_ROOT, "PokeMini_min\\shell\\debug\\command")) success = 0;
 	if (RegDeleteKey(HKEY_CLASSES_ROOT, "PokeMini_minc\\shell\\debug\\command")) success = 0;
 	if (RegDeleteKey(HKEY_CLASSES_ROOT, "PokeMini_min\\shell\\debug")) success = 0;

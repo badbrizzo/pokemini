@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@
 #include "PokeMini_BG2.h"
 
 #include "fps_counter_gfx.h"
+#include "RumbleSupport.h"
 
 const char *AppName = "PokeMini " PokeMini_Version " NDS";
 
@@ -80,9 +81,9 @@ int NDS_KeysMapping[] = {
 };
 
 // Custom command line (NEW IN 0.5.0)
-int clc_fpscounter = 1, clc_rumblepak = 0;
+int clc_displayfps = 1, clc_rumblepak = 0;
 const TCommandLineCustom CustomConf[] = {
-	{ "fpscounter", &clc_fpscounter, COMMANDLINE_BOOL },
+	{ "displayfps", &clc_displayfps, COMMANDLINE_BOOL },
 	{ "rumblepak", &clc_rumblepak, COMMANDLINE_INT, 0, 3 },
 	{ "", NULL, COMMANDLINE_EOL }
 };
@@ -108,7 +109,7 @@ int UIItems_PlatformC(int index, int reason)
 	if (reason == UIMENU_LEFT) {
 		switch (index) {
 			case 1: // FPS Counter
-				clc_fpscounter = !clc_fpscounter;
+				clc_displayfps = !clc_displayfps;
 				break;
 			case 2: // Rumble pak
 				clc_rumblepak--;
@@ -119,7 +120,7 @@ int UIItems_PlatformC(int index, int reason)
 	if (reason == UIMENU_RIGHT) {
 		switch (index) {
 			case 1: // FPS Counter
-				clc_fpscounter = !clc_fpscounter;
+				clc_displayfps = !clc_displayfps;
 				break;
 			case 2: // Rumble pak
 				clc_rumblepak++;
@@ -130,8 +131,8 @@ int UIItems_PlatformC(int index, int reason)
 				break;
 		}
 	}
-	UIMenu_ChangeItem(UIItems_Platform, 1, "FPS Counter: %s", clc_fpscounter ? "Yes" : "No");
-	UIMenu_ChangeItem(UIItems_Platform, 2, "Rumble Pak: %s (%s)", RumbleLevel[clc_rumblepak & 3], RumbleInserted[isRumbleInserted() ? 1 : 0]);
+	UIMenu_ChangeItem(UIItems_Platform, 1, "Display FPS: %s", clc_displayfps ? "Yes" : "No");
+	UIMenu_ChangeItem(UIItems_Platform, 2, "Rumble Pak: %s (%s)", RumbleLevel[clc_rumblepak & 3], RumbleInserted[RumbleCheck() ? 1 : 0]);
 	return 1;
 }
 
@@ -160,19 +161,19 @@ void VBlankHandler()
 	// Rumble animation
 	if ((PokeMini_Rumbling) && (UI_Status == UI_STATUS_GAME)) {
 		if (clc_rumblepak) {
-			if (clc_rumblepak == 3) setRumble(1);
-			else if (clc_rumblepak == 2) setRumble(!(rumbleani & 1));
-			else setRumble(!(rumbleani & 3));
+			if (clc_rumblepak == 3) RumbleEnable(1);
+			else if (clc_rumblepak == 2) RumbleEnable(!(rumbleani & 1));
+			else RumbleEnable(!(rumbleani & 3));
 			rumbleani++;
 		}
 		REG_BG3Y = PokeMini_GenRumbleOffset(256);
 	} else {
-		if (clc_rumblepak) setRumble(0);
+		if (clc_rumblepak) RumbleEnable(0);
 		REG_BG3Y = 0;
 	}
 
 	// FPS counter
-	if ((clc_fpscounter) && (UI_Status == UI_STATUS_GAME)) {
+	if ((clc_displayfps) && (UI_Status == UI_STATUS_GAME)) {
 		oamSet(&oamMain, 0,	// oam index
 			4, 12, 0,	// x & y position, priority
 			0, SpriteSize_16x16, SpriteColorFormat_16Color,	// pal index, sprite size and format
@@ -254,6 +255,9 @@ void menuloop()
 		// Handle keys
 		HandleKeys();
 
+		// Process UI
+		UIMenu_Process();
+
 		// Screen rendering
 		UIMenu_Display_16((uint16_t *)VIDEOOFF, 256);
 
@@ -269,7 +273,7 @@ void menuloop()
 	// Restore 8-bits mode
 	REG_BG3CNT = BG_BMP8_256x256;
 	memset(BG_GFX, 0, 256*256*2);
-	if (clc_fpscounter) oamEnable(&oamMain);
+	if (clc_displayfps) oamEnable(&oamMain);
 
 	// Copy palette and refresh
 	if (CommandLine.lcdmode == 3) memcpy(BG_PALETTE, PokeMini_ColorPalRGB15, 256*2);
@@ -290,7 +294,7 @@ int main(int argc, char **argv)
 	irqSet(IRQ_VBLANK, VBlankHandler);
 	timerStart(3, ClockDivider_1024, timerFreqToTicks_1024(72), FPSCounterHandler);	// 72 Hz Timer
 	irqEnable(IRQ_VBLANK | IRQ_TIMER3);
-	isRumbleInserted();
+	RumbleCheck();
 
 	// Console init
 	consoleDemoInit();
@@ -309,7 +313,7 @@ int main(int argc, char **argv)
 	CommandLine.lcdfilter = 0;	// Disable LCD filtering
 	CommandLine.lcdmode = LCDMODE_3SHADES;
 	CommandLineConfFile("pokemini.cfg", "pokemini_nds.cfg", CustomConf);
-	JoystickSetup("NDS", 0, 0, NDS_KeysNames, 12, NDS_KeysMapping);
+	JoystickSetup("NDS", 0, 30000, NDS_KeysNames, 12, NDS_KeysMapping);
 	keysSetRepeat(30, 8);
 
 	// Initialize NDS video
@@ -377,7 +381,7 @@ int main(int argc, char **argv)
 
 	// Setup palette and LCD mode
 	PokeMini_VideoPalette_Init(PokeMini_RGB15, 0);
-	PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal);
+	PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 	PokeMini_ApplyChanges();
 	if (CommandLine.lcdmode == 3) memcpy(BG_PALETTE, PokeMini_ColorPalRGB15, 256*2);
 	else memcpy(BG_PALETTE, VidPalette16, 256*2);

@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -110,7 +110,7 @@ LRESULT CALLBACK DefineKeyboard_DlgProc(HWND hWndDlg, UINT Msg, WPARAM wParam, L
 
 void DefineKeyboard_Dialog(HINSTANCE hInst, HWND hParentWnd)
 {
-	DialogBox(hInst, MAKEINTRESOURCE(IDD_KEYDEF), hParentWnd, DefineKeyboard_DlgProc);
+	DialogBox(hInst, MAKEINTRESOURCE(IDD_KEYDEF), hParentWnd, (DLGPROC)DefineKeyboard_DlgProc);
 }
 
 // ----- Joystick -----
@@ -193,5 +193,5 @@ LRESULT CALLBACK DefineJoystick_DlgProc(HWND hWndDlg, UINT Msg, WPARAM wParam, L
 
 void DefineJoystick_Dialog(HINSTANCE hInst, HWND hParentWnd)
 {
-	DialogBox(hInst, MAKEINTRESOURCE(IDD_JOYDEF), hParentWnd, DefineJoystick_DlgProc);
+	DialogBox(hInst, MAKEINTRESOURCE(IDD_JOYDEF), hParentWnd, (DLGPROC)DefineJoystick_DlgProc);
 }

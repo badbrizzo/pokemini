@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -45,6 +45,7 @@ static GtkItemFactory *ItemFactory;
 static GtkAccelGroup *AccelGroup;
 static GtkBox *VBox1;
 static GtkMenuBar *MenuBar;
+static GtkLabel *LabelRunFull;
 static GtkLabel *LabelInfo;
 static SGtkXDrawingView PRCTilesView;
 
@@ -674,6 +675,10 @@ int PRCTilesWindow_Create(void)
 	gtk_box_pack_start(VBox1, GTK_WIDGET(MenuBar), FALSE, TRUE, 0);
 	gtk_widget_show(GTK_WIDGET(MenuBar));
 
+	// Label that warn when running full speed
+	LabelRunFull = GTK_LABEL(gtk_label_new("To view content you must stop emulation or run in debug frames/steps."));
+	gtk_box_pack_start(VBox1, GTK_WIDGET(LabelRunFull), FALSE, TRUE, 0);
+
 	// Info label
 	LabelInfo = GTK_LABEL(gtk_label_new("-:-"));
 	gtk_box_pack_start(VBox1, GTK_WIDGET(LabelInfo), FALSE, TRUE, 0);
@@ -801,6 +806,19 @@ void PRCTilesWindow_ROMResized(void)
 {
 	sgtkx_drawing_view_sbminmax(&PRCTilesView, 0, (PM_ROM_Size/8)-1);
 	PRCTilesWindow_Refresh(1);
+}
+
+void PRCTilesWindow_Sensitive(int enabled)
+{
+	if (enabled) {
+		gtk_widget_hide(GTK_WIDGET(LabelRunFull));
+		gtk_widget_show(GTK_WIDGET(PRCTilesView.box));
+		gtk_widget_show(GTK_WIDGET(LabelInfo));
+	} else {
+		gtk_widget_show(GTK_WIDGET(LabelRunFull));
+		gtk_widget_hide(GTK_WIDGET(PRCTilesView.box));
+		gtk_widget_hide(GTK_WIDGET(LabelInfo));
+	}
 }
 
 void PRCTilesWindow_Refresh(int now)

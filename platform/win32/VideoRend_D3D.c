@@ -153,10 +153,11 @@ void VideoRend_D3D_GetPitch(int *bytpitch, int *pixpitch)
 {
 	D3DLOCKED_RECT pLockedRect;
 	if (!RendWasInit) return;
-	IDirect3DSurface9_LockRect(pD3DSurface, &pLockedRect, NULL, D3DLOCK_READONLY);
+	IDirect3DSurface9_LockRect(pD3DSurface, &pLockedRect, NULL, 0);
 	IDirect3DSurface9_UnlockRect(pD3DSurface);
 	*bytpitch = pLockedRect.Pitch;
-	*pixpitch = pLockedRect.Pitch >> 2;
+	if (RendImgBpp == 32) *pixpitch = pLockedRect.Pitch >> 2;
+	else *pixpitch = pLockedRect.Pitch >> 1;
 }
 
 // Clear video, do not call inside locked buffer

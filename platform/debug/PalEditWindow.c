@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -106,7 +106,7 @@ static void ColorComp_Adj_changed(GtkAdjustment *adj, gpointer data)
 	if (ic == 1) g = (int)(adj->value);
 	if (ic == 2) b = (int)(adj->value);
 	CommandLine.custompal[ix] = RGB24(b, g, r);
-	PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal);
+	PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 	gtk_widget_queue_draw(GTK_WIDGET(ColorPrev[ix]));
 }
 

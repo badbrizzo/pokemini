@@ -26,6 +26,7 @@
 #include <pspaudio.h>
 #include <psppower.h>
 #include <psputility_sysparam.h>
+#include <psprtc.h>
 #include <time.h>
 
 // Video access

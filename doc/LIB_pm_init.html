@@ -117,7 +117,7 @@ window.onload = InstructionSet_CheckItem;
     <p><a href="TOOLS_ImgConv.html">Image Converter</a></p>
     <p><a href="TOOLS_MusicConv.html">Music Converter</a></p>
     <p>Last Updated:<br />
-      <strong>Dec 18, 2013</strong></p>
+      <strong>Jun. 12, 2014</strong></p>
     <br /><br />
     <h3 style="text-align:center"><img src="cpudie.gif" alt="CPU Die" width="73" height="55" /><br />
       Hardware</h3>
@@ -274,7 +274,7 @@ window.onload = InstructionSet_CheckItem;
         <td>Align data for PRC sprites tiles, equivalent to "<span class="code_dire">.align</span> 64" but doesn't override assembler's aligment</td>
       </tr>
     </table>
-    <p>Peudo-instructions, automatically manage banks before jumping</p>
+    <p>Peudo-instructions, automatically manage banks before jumping:</p>
     <table width="100%" border="1" class="smallfnt">
       <tr>
         <th scope="col" width="50%">Macro</th>
@@ -389,8 +389,65 @@ window.onload = InstructionSet_CheckItem;
         <td>Far version of CALLS</td>
       </tr>
     </table>
+    <p>Peudo-instructions, automatically update upper address:</p>
+    <table width="100%" border="1" class="smallfnt">
+      <tr>
+        <th scope="col" width="50%">Macro</th>
+        <th scope="col" width="50%">Description</th>
+      </tr>
+      <tr>
+        <td><span class="code_macro">add24x</span> number</td>
+        <td>Add/Sub XI:X by number</td>
+      </tr>
+      <tr>
+        <td><span class="code_macro">add24y</span> number</td>
+        <td>Add/Sub YI:Y by number</td>
+      </tr>
+      <tr>
+        <td><span class="code_macro">add24hl</span> number</td>
+        <td>Add/Sub I:HL by number</td>
+      </tr>
+      <tr>
+        <td><span class="code_macro">add24x_a</span> number</td>
+        <td>Add/Sub XI:X by number, trash A on page cross</td>
+      </tr>
+      <tr>
+        <td><span class="code_macro">add24y_a</span> number</td>
+        <td>Add/Sub YI:Y by number, trash A on page cross</td>
+      </tr>
+      <tr>
+        <td><span class="code_macro">add24hl_a</span> number</td>
+        <td>Add/Sub I:HL by number, trash A on page cross</td>
+      </tr>
+    </table>
+    <p>number value must be between -65535 and 65535<br />
+      "INC" instruction will be used if number is 1<br />
+    No code will be generated if number is 0</p>
     <h2>Defines</h2>
     <p>Definitions in bold have multiple definitions with the same value, hover the mouse over to see the list</p>
+    <h3 align="center">RAM variables</h3>
+    <table width="100%" border="1" class="smallfnt">
+      <tr>
+        <th scope="col" width="30%">Definition</th>
+        <th scope="col" width="10%">Init</th>
+        <th scope="col" width="60%">Description</th>
+      </tr>
+      <tr>
+        <td class="code_def">PMINIT_RAND</td>
+        <td>0x0001</td>
+        <td>16-Bits Random Generator Seed</td>
+      </tr>
+      <tr>
+        <td class="code_def">PMINIT_KEYPAD</td>
+        <td>0x??</td>
+        <td>Keypad status at start of ROM</td>
+      </tr>
+      <tr>
+        <td class="code_def">PMINIT_FRAMECNT</td>
+        <td>0x00</td>
+        <td>Frame counter, used in CLib PRC wait routines</td>
+      </tr>
+    </table>
     <h3 align="center">Memory bases</h3>
     <table width="100%" border="1" class="smallfnt">
       <tr>
@@ -399,7 +456,7 @@ window.onload = InstructionSet_CheckItem;
         <th scope="col" width="60%">Description</th>
       </tr>
       <tr>
-        <td><strong>Registers base</strong></td>
+        <td><strong>Registers bases</strong></td>
         <td>&nbsp;</td>
         <td>&nbsp;</td>
       </tr>
@@ -424,7 +481,7 @@ window.onload = InstructionSet_CheckItem;
         <td>N register base</td>
       </tr>
       <tr>
-        <td><strong>Memory defines</strong></td>
+        <td><strong>Memory bases</strong></td>
         <td>&nbsp;</td>
         <td>&nbsp;</td>
       </tr>
@@ -457,6 +514,16 @@ window.onload = InstructionSet_CheckItem;
         <td class="code_def">PRC_SPR_BASE</td>
         <td>$2085</td>
         <td>PRC Sprite base</td>
+      </tr>
+      <tr>
+        <td><strong>Version</strong></td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+      </tr>
+      <tr>
+        <td class="code_def">PMINIT_VER</td>
+        <td>5</td>
+        <td>pminit library revision number</td>
       </tr>
     </table>
     <h3 align="center">Registers</h3>
@@ -919,12 +986,12 @@ Timer 1 Osc. Select</td>
         <td>Debug output a signed 16-bits number (High Byte)</td>
       </tr>
       <tr>
-        <td><strong class="code_def" title="POKEMINI_FX8, POKEMINI_FX8L">POKEMINI_FX8</strong></td>
+        <td><strong class="code_def" title="POKEMINI_FX8_8, POKEMINI_FX8_8L">POKEMINI_FX8_8</strong></td>
         <td>$DE</td>
         <td>Debug output a fixed point 8.8 number (Low Byte)</td>
       </tr>
       <tr>
-        <td class="code_def">POKEMINI_FX8H</td>
+        <td class="code_def">POKEMINI_FX8_8H</td>
         <td>$DF</td>
         <td>Debug output a fixed point 8.8 number (High Byte)</td>
       </tr>
@@ -1085,6 +1152,18 @@ Timer 1 Osc. Select</td>
         <td>$02</td>
         <td><span class="code_opc">or</span> [n+<span class="code_def">SEC_CTRL</span>], <span class="code_def">SEC_RESET</span></td>
         <td>Second Counter Reset</td>
+      </tr>
+      <tr>
+        <td><strong>Battery status</strong></td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+      </tr>
+      <tr>
+        <td class="code_def">LOW_BATTERY</td>
+        <td>$20</td>
+        <td><span class="code_opc">tst</span> [n+<span class="code_def">SYS_BATT</span>], <span class="code_def">LOW_BATTERY</span></td>
+        <td>Low battery indicator</td>
       </tr>
       <tr>
         <td><strong>256Hz Timer</strong></td>
@@ -3075,6 +3154,6 @@ if type is 0x00, register A return 0x01 if compare is equal</pre>        </td>
     <span class="clearfloat"></span>
   </div>
 </div>
-<p class="copyright">&copy; 2011-2013 by JustBurn - Hardware documentation copy from Sublab by Team-Pokémé</p>
+<p class="copyright">&copy; 2011-2015 by JustBurn - Hardware documentation copy from Sublab by Team-Pokémé</p>
 </body>
 <!-- InstanceEnd --></html>

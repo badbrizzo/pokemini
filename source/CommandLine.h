@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,7 +36,6 @@ enum {
 	COMMANDLINE_INT,     // Integer, NumA = Minimum, NumB = Maximum
 	COMMANDLINE_INTSET,  // Set value (custom only), NumA = Value
 	COMMANDLINE_STR,     // String, NumA = String size minus NULL
-	COMMANDLINE_STRSET,  // Set string (custom only), NumA = String to set
 };
 
 typedef struct {
@@ -66,6 +65,8 @@ typedef struct {
 	int keyb_a[10];
 	int keyb_b[10];
 	uint32_t custompal[4];
+	int lcdcontrast;
+	int lcdbright;
 	const char *pokefile;
 	const char *conffile;
 	const TCommandLineCustom *confcustom;

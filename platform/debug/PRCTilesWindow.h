@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ void PRCTilesWindow_Destroy(void);
 void PRCTilesWindow_Activate(void);
 void PRCTilesWindow_UpdateConfigs(void);
 void PRCTilesWindow_ROMResized(void);
+void PRCTilesWindow_Sensitive(int enabled);
 void PRCTilesWindow_Refresh(int now);
 
 #endif

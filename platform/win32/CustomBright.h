@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2014  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,11 +16,9 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef KEYBSDLMAP_H
-#define KEYBSDLMAP_H
+#pragma once
 
-#include "Keyboard.h"
+#include <windows.h>
 
-extern TKeyboardRemap KeybSDLRemap;
-
-#endif
+LRESULT CALLBACK CustomBright_DlgProc(HWND hWndDlg, UINT Msg, WPARAM wParam, LPARAM lParam);
+void CustomBright_Dialog(HINSTANCE hInst, HWND hParentWnd);

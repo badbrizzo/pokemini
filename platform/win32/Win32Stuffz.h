@@ -24,5 +24,8 @@ int OpenFileDialogEx(HWND parentwindow, const char *title, char *fileout, const 
 // Save file dialog
 int SaveFileDialogEx(HWND parentwindow, const char *title, char *fileout, const char *filein, const char *exts, int extidx);
 
-// For compability
+// For Visual C++ compability
+#ifdef _MSC_VER
 int strcasecmp(const char *s1, const char *s2);
+#endif
+

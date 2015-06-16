@@ -70,6 +70,44 @@ void Comment_ExportCode(FILE_ECODE *fec, const char *fmt, ...)
 	va_end(args);
 }
 
+void PrintASM_ExportCode(FILE_ECODE *fec, const char *fmt, ...)
+{
+	va_list args;
+	FILE *fo = NULL;
+	if (!fec) return;
+
+	va_start(args, fmt);
+	if (fec->format == FILE_ECODE_RAW) {
+		return;
+	} else if (fec->format == FILE_ECODE_ASM) {
+		fo = ((FILE_EASM *)fec->foptr)->fo;
+	} else if (fec->format == FILE_ECODE_C) {
+		return;
+	}
+	vfprintf(fo, fmt, args);
+	fprintf(fo, "\n");
+	va_end(args);
+}
+
+void PrintC_ExportCode(FILE_ECODE *fec, const char *fmt, ...)
+{
+	va_list args;
+	FILE *fo = NULL;
+	if (!fec) return;
+
+	va_start(args, fmt);
+	if (fec->format == FILE_ECODE_RAW) {
+		return;
+	} else if (fec->format == FILE_ECODE_ASM) {
+		return;
+	} else if (fec->format == FILE_ECODE_C) {
+		fo = ((FILE_EC *)fec->foptr)->fo;
+	}
+	vfprintf(fo, fmt, args);
+	fprintf(fo, "\n");
+	va_end(args);
+}
+
 int BlockOpen_ExportCode(FILE_ECODE *fec, int bits, const char *varname)
 {
 	if (!fec) return 0;

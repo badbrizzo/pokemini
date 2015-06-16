@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@
 
 #include "Joystick.h"
 #include "Keyboard.h"
-#include "KeybSDLMap.h"
+#include "KeybMapSDL.h"
 
 int InputWindow_InConfigs = 0;
 
@@ -96,7 +96,7 @@ static void InputWindow_ButtonApply_clicked(GtkWidget *widget, gpointer data)
 	}
 
 	if (newdevice) reopenjoystick();
-	KeyboardRemap(&KeybSDLRemap);
+	KeyboardRemap(&KeybMapSDL);
 }
 
 static void InputWindow_ButtonRestore_clicked(GtkWidget *widget, gpointer data)

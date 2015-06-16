@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,24 +21,22 @@
 // Emulate X cycles, return remaining
 int PokeMini_EmulateCycles(int lcylc)
 {
-	int cylc;
-
 	if (RequireSoundSync) {
 		while (lcylc > 0) {
-			if (StallCPU) cylc = StallCycles;
-			else cylc = MinxCPU_Exec();
-			MinxTimers_Sync(cylc);
-			MinxPRC_Sync(cylc);
-			MinxAudio_Sync(cylc);
-			lcylc -= cylc;
+			if (StallCPU) PokeHWCycles = StallCycles;
+			else PokeHWCycles = MinxCPU_Exec();
+			MinxTimers_Sync();
+			MinxPRC_Sync();
+			MinxAudio_Sync();
+			lcylc -= PokeHWCycles;
 		}
 	} else {
 		while (lcylc > 0) {
-			if (StallCPU) cylc = StallCycles;
-			else cylc = MinxCPU_Exec();
-			MinxTimers_Sync(cylc);
-			MinxPRC_Sync(cylc);
-			lcylc -= cylc;
+			if (StallCPU) PokeHWCycles = StallCycles;
+			else PokeHWCycles = MinxCPU_Exec();
+			MinxTimers_Sync();
+			MinxPRC_Sync();
+			lcylc -= PokeHWCycles;
 		}
 	}
 
@@ -49,32 +47,33 @@ int PokeMini_EmulateCycles(int lcylc)
 static int PokeMini_EmulateFrameRun;
 int PokeMini_EmulateFrame(void)
 {
-	int cylc, lcylc = 0;
+	int lcylc = 0;
+	int synccylc = CommandLine.synccycles;
 
 	PokeMini_EmulateFrameRun = 1;
 
 	if (RequireSoundSync) {
 		while (PokeMini_EmulateFrameRun) {
-			cylc = 0;
-			while (cylc < CommandLine.synccycles) {
-				if (StallCPU) cylc += StallCycles;
-				else cylc += MinxCPU_Exec();
+			PokeHWCycles = 0;
+			while (PokeHWCycles < synccylc) {
+				if (StallCPU) PokeHWCycles += StallCycles;
+				else PokeHWCycles += MinxCPU_Exec();
 			}
-			MinxTimers_Sync(cylc);
-			MinxPRC_Sync(cylc);
-			MinxAudio_Sync(cylc);
-			lcylc += cylc;
+			MinxTimers_Sync();
+			MinxPRC_Sync();
+			MinxAudio_Sync();
+			lcylc += PokeHWCycles;
 		}
 	} else {
 		while (PokeMini_EmulateFrameRun) {
-			cylc = 0;
-			while (cylc < CommandLine.synccycles) {
-				if (StallCPU) cylc += StallCycles;
-				else cylc += MinxCPU_Exec();
+			PokeHWCycles = 0;
+			while (PokeHWCycles < synccylc) {
+				if (StallCPU) PokeHWCycles += StallCycles;
+				else PokeHWCycles += MinxCPU_Exec();
 			}
-			MinxTimers_Sync(cylc);
-			MinxPRC_Sync(cylc);
-			lcylc += cylc;
+			MinxTimers_Sync();
+			MinxPRC_Sync();
+			lcylc += PokeHWCycles;
 		}
 	}
 
@@ -87,11 +86,16 @@ int PokeMini_EmulateFrame(void)
 
 uint8_t MinxCPU_OnRead(int cpu, uint32_t addr)
 {
-	if (addr >= 0x2100) {
-		// ROM Read
 #ifdef PERFORMANCE
+	if (addr >= 0x2100) {
+		// ROM Read (ROM Cartridge)
 		if (PM_ROM) return PM_ROM[addr & PM_ROM_Mask];
 #else
+	if (addr >= 0x200000) {
+		// Open bus
+		return MinxCPU.IR;
+	} else if (addr >= 0x2100) {
+		// ROM Read (Multicard)
 		return MulticartRead(addr);
 #endif
 	} else if (addr >= 0x2000) {
@@ -169,9 +173,14 @@ uint8_t MinxCPU_OnRead(int cpu, uint32_t addr)
 
 void MinxCPU_OnWrite(int cpu, uint32_t addr, uint8_t data)
 {
+#ifdef PERFORMANCE
 	if (addr >= 0x2100) {
+		// Do nothing...
+#else
+	if (addr >= 0x200000) {
+		// Open bus
+	} else if (addr >= 0x2100) {
 		// ROM Write
-#ifndef PERFORMANCE
 		MulticartWrite(addr, data);
 #endif
 		return;
@@ -304,11 +313,6 @@ void MinxCPU_OnIRQHandle(uint8_t cpuflag, uint8_t shift_u)
 			MinxIRQ_Process();
 		}
 	}
-}
-
-int MinxCPU_OnLCount(int param1, int param2)
-{
-	return 1;
 }
 
 void MinxCPU_OnIRQAct(uint8_t intr)

@@ -1,4 +1,4 @@
-; Copyright (C) 2012 by JustBurn
+; Copyright (C) 2015 by JustBurn
 ;
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
@@ -430,7 +430,7 @@ _BGMnovol:
 	mov hl, x
 	add hl, ba
 	mov [pmmusram_bgm_ppr], hl
-	jnzb _bgm_noinc1
+	jncb _bgm_noinc1
 	mov hl, pmmusram_bgm_ppr+2
 	inc [hl]
 _bgm_noinc1:
@@ -442,7 +442,7 @@ _BGM_Cwriteram:
 	jzb _BGM_Csetfreq
 	inc x
 	inc x
-	jncb _BGM_Rwriteram
+	jnzb _BGM_Rwriteram
 	mov a, xi
 	inc a
 	mov xi, a
@@ -460,7 +460,7 @@ _BGM_Csetfreq:
 	jzb _BGM_Csetpivot
 	inc x
 	inc x
-	jncb _BGM_Rsetfreq
+	jnzb _BGM_Rsetfreq
 	mov a, xi
 	inc a
 	mov xi, a
@@ -475,7 +475,7 @@ _BGM_Csetpivot:
 	jzb _BGM_Cnextend
 	inc x
 	inc x
-	jncb _BGM_Rsetpivot
+	jnzb _BGM_Rsetpivot
 	mov a, xi
 	inc a
 	mov xi, a
@@ -490,7 +490,7 @@ _BGM_Cnextend:
 	jzb _BGM_Cloop
 	inc x
 	inc x
-	jncb _BGM_Rnextend
+	jnzb _BGM_Rnextend
 	mov a, xi
 	inc a
 	mov xi, a
@@ -538,7 +538,7 @@ _BGM_Cloop:
 	jzb _BGM_Cdone
 	inc x
 	inc x
-	jncb _BGM_Rloop
+	jnzb _BGM_Rloop
 	mov a, xi
 	inc a
 	mov xi, a
@@ -658,7 +658,7 @@ _SFXnovol:
 	mov hl, x
 	add hl, ba
 	mov [pmmusram_sfx_ppr], hl
-	jnzb _sfx_noinc1
+	jncb _sfx_noinc1
 	mov hl, pmmusram_sfx_ppr+2
 	inc [hl]
 _sfx_noinc1:
@@ -670,7 +670,7 @@ _SFX_Cwriteram:
 	jzb _SFX_Csetfreq
 	inc x
 	inc x
-	jncb _SFX_Rwriteram
+	jnzb _SFX_Rwriteram
 	mov a, xi
 	inc a
 	mov xi, a
@@ -688,7 +688,7 @@ _SFX_Csetfreq:
 	jzb _SFX_Csetpivot
 	inc x
 	inc x
-	jncb _SFX_Rsetfreq
+	jnzb _SFX_Rsetfreq
 	mov a, xi
 	inc a
 	mov xi, a
@@ -703,7 +703,7 @@ _SFX_Csetpivot:
 	jzb _SFX_Cnextend
 	inc x
 	inc x
-	jncb _SFX_Rsetpivot
+	jnzb _SFX_Rsetpivot
 	mov a, xi
 	inc a
 	mov xi, a
@@ -718,7 +718,7 @@ _SFX_Cnextend:
 	jzb _SFX_Cloop
 	inc x
 	inc x
-	jncb _SFX_Rnextend
+	jnzb _SFX_Rnextend
 	mov a, xi
 	inc a
 	mov xi, a
@@ -732,7 +732,7 @@ _SFX_Cloop:
 	jzb _SFX_Cdone
 	inc x
 	inc x
-	jncb _SFX_Rloop
+	jnzb _SFX_Rloop
 	mov a, xi
 	inc a
 	mov xi, a

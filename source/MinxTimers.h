@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -103,7 +103,7 @@ enum {
 #define MINX_TIMER256INC (16777216/15625)   // Aproximate value of 256Hz Timer (256 Hz)
 
 // Timers counting frequency table
-const uint32_t MinxTimers_CountFreq[32];
+extern const uint32_t MinxTimers_CountFreq[32];
 
 int MinxTimers_Create(void);
 
@@ -115,7 +115,7 @@ int MinxTimers_LoadState(FILE *fi, uint32_t bsize);
 
 int MinxTimers_SaveState(FILE *fi);
 
-void MinxTimers_Sync(int32_t cycles);
+void MinxTimers_Sync(void);
 
 uint8_t MinxTimers_ReadReg(uint8_t reg);
 

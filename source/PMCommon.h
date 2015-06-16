@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2014  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -116,6 +116,9 @@ void ClearCtrlChars(char *s, int len);
 
 // atoi() that support hex numbers and default on failure
 int atoi_Ex(const char *str, int defnum);
+
+// atoi() that support hex numbers, return false on failure
+int atoi_Ex2(const char *str, int *outnum);
 
 // atof() that return float and support default on failure
 float atof_Ex(const char *str, float defnum);

@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 #include "Hardware.h"
 #include "Joystick.h"
 #include "Keyboard.h"
-#include "KeybSDLMap.h"
+#include "KeybMapSDL.h"
 
 #include "Video_x4.h"
 #include "PokeMini_BG4.h"
@@ -119,6 +119,9 @@ void menuloop()
 	while (emurunning && (UI_Status == UI_STATUS_MENU)) {
 		// Slowdown to approx. 60fps
 		SDL_Delay(16);
+
+		// Process UI
+		UIMenu_Process();
 
 		// Screen rendering
 		SDL_FillRect(screen, NULL, 0);
@@ -213,7 +216,7 @@ int main(int argc, char **argv)
 
 	// Setup palette and LCD mode
 	PokeMini_VideoPalette_Init(PokeMini_BGR16, 1);
-	PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal);
+	PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 	PokeMini_ApplyChanges();
 
 	// Load stuff
@@ -225,7 +228,7 @@ int main(int argc, char **argv)
 	// Enable sound & init UI
 	printf("Running emulator...\n");
 	UIMenu_Init();
-	KeyboardRemap(&KeybSDLRemap);
+	KeyboardRemap(&KeybMapSDL);
 	enablesound(CommandLine.sound);
 
 	// Emulator's loop

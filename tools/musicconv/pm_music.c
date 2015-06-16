@@ -1,6 +1,6 @@
 /*
   PokeMini Music Converter
-  Copyright (C) 2011-2012  JustBurn
+  Copyright (C) 2011-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -161,6 +161,10 @@ void pmmusic_playbgm(pmmusic_bgm *bgm)
 void pmmusic_stopbgm(void)
 {
 	pmmusic.aud_ena &= 0x02;
+	if (pmmusic.aud_ena == 0) {
+		WriteReg(0x38, 0);
+		WriteReg(0x48, 0);
+	}
 }
 
 void pmmusic_playsfx(pmmusic_sfx *sfx)
@@ -181,6 +185,10 @@ void pmmusic_playsfx(pmmusic_sfx *sfx)
 void pmmusic_stopsfx(void)
 {
 	pmmusic.aud_ena &= 0x01;
+	if (pmmusic.aud_ena == 0) {
+		WriteReg(0x38, 0);
+		WriteReg(0x48, 0);
+	}
 }
 
 void pmmusic_irq(void)
@@ -480,12 +488,8 @@ pmmusic_bgm *pmmusic_newbgm(const char *varname, int param)
 
 void pmmusic_deletebgm(pmmusic_bgm *bgm)
 {
-	int i;
 	if (bgm) {
-		if (bgm->pattern) {
-			for (i=0; i<bgm->numpattern; i++) pmmusic_deletepattern(bgm->pattern[i]);
-			free((void *)bgm->pattern);
-		}
+		if (bgm->pattern) free((void *)bgm->pattern);
 		free((void *)bgm);
 	}
 }
@@ -540,6 +544,10 @@ void pmmusic_deletelist(pmmusic_list *list)
 {
 	int i;
 	if (list) {
+		if (list->pattern) {
+			for (i=0; i<list->numpattern; i++) pmmusic_deletepattern(list->pattern[i]);
+			free((void *)list->pattern);
+		}
 		if (list->bgm) {
 			for (i=0; i<list->numbgm; i++) pmmusic_deletebgm(list->bgm[i]);
 			free((void *)list->bgm);

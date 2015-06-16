@@ -3,7 +3,7 @@
 	<keyword-classes>
 		<keyword-class name="pmmusic_directives">
 			include title composer programmer description
-			outformat varheader outheader
+			outformat outlist varheader outheader
 			mtime mastertime mbpm masterbpm
 			vollvl vollevel bgm sfx sfx_t sfx_track
 			macro macro_t macro_track pat pattern

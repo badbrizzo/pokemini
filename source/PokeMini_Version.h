@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,18 +19,18 @@
 #ifndef PokeMini_Version
 
 // Version in normal format
-#define PokeMini_Version "0.5.4"
+#define PokeMini_Version "0.60"
 
 // Version in short format (5 chars max!)
-#define PokeMini_VerShort "0.5.4"
+#define PokeMini_VerShort "0.60"
 
 // Savestate file ID
 //   Change only if savestate structure file changes!
 #define PokeMini_ID 0x006B4D50
 
 // For windows resource file
-#define RES_VERSION	0,5,4,0
-#define RES_VERSION_STR	"0.5.4"
-#define RES_COPYRIGHT	"Copyright by JustBurn 2003-2013"
+#define RES_VERSION	0,6,0,0
+#define RES_VERSION_STR	"0.60"
+#define RES_COPYRIGHT	"Copyright by JustBurn 2003-2015"
 
 #endif

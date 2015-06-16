@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -172,14 +172,14 @@ int MinxTimers_SaveState(FILE *fi)
 	POKESAVESS_END(128);
 }
 
-void MinxTimers_Sync(int32_t cycles)
+void MinxTimers_Sync(void)
 {
 	register uint32_t PreCount;
 
 	// Process 256Hz Timer (Increment)
 	if (PMR_TMR256_CTRL) {
 		PreCount = MinxTimers.Tmr8Cnt;
-		MinxTimers.Tmr8Cnt += MINX_TIMER256INC * cycles;
+		MinxTimers.Tmr8Cnt += MINX_TIMER256INC * PokeHWCycles;
 		if ((PreCount & 0x08000000) ^ (MinxTimers.Tmr8Cnt & 0x08000000)) {
 			// 32Hz
 			MinxCPU_OnIRQAct(MINX_INTR_0B);
@@ -200,7 +200,7 @@ void MinxTimers_Sync(int32_t cycles)
 
 	// Process Second Timer (Increment)
 	if (PMR_SEC_CTRL) {
-		MinxTimers.TmrSecs += cycles;
+		MinxTimers.TmrSecs += PokeHWCycles;
 		if (MinxTimers.TmrSecs >= 4000000) {
 			MinxTimers.SecTimerCnt++;
 			MinxTimers.TmrSecs -= 4000000;
@@ -212,7 +212,7 @@ void MinxTimers_Sync(int32_t cycles)
 		// 1x 16-Bits Timer
 		if (MinxTimers.Tmr1LEna) {
 			PreCount = MinxTimers.Tmr1CntA;
-			MinxTimers.Tmr1CntA -= MinxTimers.Tmr1DecA * cycles;
+			MinxTimers.Tmr1CntA -= MinxTimers.Tmr1DecA * PokeHWCycles;
 			if (PreCount < MinxTimers.Tmr1CntA) {
 				PreCount = MinxTimers.Tmr1CntB;
 				MinxTimers.Tmr1CntB -= 0x01000000;
@@ -229,7 +229,7 @@ void MinxTimers_Sync(int32_t cycles)
 		if (MinxTimers.Tmr1LEna) {
 			// Timer Lo
 			PreCount = MinxTimers.Tmr1CntA;
-			MinxTimers.Tmr1CntA -= MinxTimers.Tmr1DecA * cycles;
+			MinxTimers.Tmr1CntA -= MinxTimers.Tmr1DecA * PokeHWCycles;
 			if (PreCount < MinxTimers.Tmr1CntA) {
 				MinxTimers.Tmr1CntA = MinxTimers.Tmr1PreA;
 				// IRQ Timer 1-Lo underflow
@@ -239,7 +239,7 @@ void MinxTimers_Sync(int32_t cycles)
 		if (MinxTimers.Tmr1HEna) {
 			// Timer Hi
 			PreCount = MinxTimers.Tmr1CntB;
-			MinxTimers.Tmr1CntB -= MinxTimers.Tmr1DecB * cycles;
+			MinxTimers.Tmr1CntB -= MinxTimers.Tmr1DecB * PokeHWCycles;
 			if (PreCount < MinxTimers.Tmr1CntB) {
 				MinxTimers.Tmr1CntB = MinxTimers.Tmr1PreB;
 				// IRQ Timer 1-Hi underflow
@@ -253,7 +253,7 @@ void MinxTimers_Sync(int32_t cycles)
 		// 1x 16-Bits Timer
 		if (MinxTimers.Tmr2LEna) {
 			PreCount = MinxTimers.Tmr2CntA;
-			MinxTimers.Tmr2CntA -= MinxTimers.Tmr2DecA * cycles;
+			MinxTimers.Tmr2CntA -= MinxTimers.Tmr2DecA * PokeHWCycles;
 			if (PreCount < MinxTimers.Tmr2CntA) {
 				PreCount = MinxTimers.Tmr2CntB;
 				MinxTimers.Tmr2CntB -= 0x01000000;
@@ -270,7 +270,7 @@ void MinxTimers_Sync(int32_t cycles)
 		if (MinxTimers.Tmr2LEna) {
 			// Timer Lo
 			PreCount = MinxTimers.Tmr2CntA;
-			MinxTimers.Tmr2CntA -= MinxTimers.Tmr2DecA * cycles;
+			MinxTimers.Tmr2CntA -= MinxTimers.Tmr2DecA * PokeHWCycles;
 			if (PreCount < MinxTimers.Tmr2CntA) {
 				MinxTimers.Tmr2CntA = MinxTimers.Tmr2PreA;
 				// IRQ Timer 2-Lo underflow
@@ -280,7 +280,7 @@ void MinxTimers_Sync(int32_t cycles)
 		if (MinxTimers.Tmr2HEna) {
 			// Timer Hi
 			PreCount = MinxTimers.Tmr2CntB;
-			MinxTimers.Tmr2CntB -= MinxTimers.Tmr2DecB * cycles;
+			MinxTimers.Tmr2CntB -= MinxTimers.Tmr2DecB * PokeHWCycles;
 			if (PreCount < MinxTimers.Tmr2CntB) {
 				MinxTimers.Tmr2CntB = MinxTimers.Tmr2PreB;
 				// IRQ Timer 2-Hi underflow
@@ -294,7 +294,7 @@ void MinxTimers_Sync(int32_t cycles)
 		// 1x 16-Bits Timer
 		if (MinxTimers.Tmr3LEna) {
 			PreCount = MinxTimers.Tmr3CntA;
-			MinxTimers.Tmr3CntA -= MinxTimers.Tmr3DecA * cycles;
+			MinxTimers.Tmr3CntA -= MinxTimers.Tmr3DecA * PokeHWCycles;
 			if (PreCount < MinxTimers.Tmr3CntA) {
 				PreCount = MinxTimers.Tmr3CntB;
 				MinxTimers.Tmr3CntB -= 0x01000000;
@@ -319,7 +319,7 @@ void MinxTimers_Sync(int32_t cycles)
 		if (MinxTimers.Tmr3LEna) {
 			// Timer Lo
 			PreCount = MinxTimers.Tmr3CntA;
-			MinxTimers.Tmr3CntA -= MinxTimers.Tmr3DecA * cycles; // Osci2
+			MinxTimers.Tmr3CntA -= MinxTimers.Tmr3DecA * PokeHWCycles; // Osci2
 			if (PreCount < MinxTimers.Tmr3CntA) {
 				MinxTimers.Tmr3CntA = MinxTimers.Tmr3PreA;
 			}
@@ -328,7 +328,7 @@ void MinxTimers_Sync(int32_t cycles)
 		if (MinxTimers.Tmr3HEna) {
 			// Timer Hi
 			PreCount = MinxTimers.Tmr3CntB;
-			MinxTimers.Tmr3CntB -= MinxTimers.Tmr3DecB * cycles; // Osci2
+			MinxTimers.Tmr3CntB -= MinxTimers.Tmr3DecB * PokeHWCycles; // Osci2
 			if (PreCount < MinxTimers.Tmr3CntB) {
 				MinxTimers.Tmr3CntB = MinxTimers.Tmr3PreB;
 				// IRQ Timer 3 underflow

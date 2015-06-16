@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -47,6 +47,7 @@ static GtkItemFactory *ItemFactory;
 static GtkAccelGroup *AccelGroup;
 static GtkBox *VBox1;
 static GtkMenuBar *MenuBar;
+static GtkLabel *LabelRunFull;
 static SGtkXDrawingView TraceView;
 static GtkBox *HBox1;
 static GtkBox *VBox2[3];
@@ -54,6 +55,8 @@ static GtkLabel *TmrTitle[3];
 static GtkToggleButton *TmrEna[3];
 static GtkLabel *TmrValue[3];
 static GtkButton *TmrClear[3];
+static GtkButton *TmrClipCopy[3];
+static GtkButton *TmrClipPaste[3];
 
 static char *TmrTitle_Txt[3] = {
 	"-: Timing Counter 1 :-",
@@ -101,6 +104,32 @@ static void TmrClear_clicked(GtkWidget *widget, gpointer data)
 	TraceWindow_Render();
 }
 
+static void TmrClipCopy_clicked(GtkWidget *widget, gpointer data)
+{
+	char txt[PMTMPV];
+	txt[0] = 0;
+	switch ((int)data) {
+		case 0: sprintf(txt, "%i", CYCTmr1Cnt); break;
+		case 1: sprintf(txt, "%i", CYCTmr2Cnt); break;
+		case 2: sprintf(txt, "%i", CYCTmr3Cnt); break;
+	}
+	gtk_clipboard_set_text(gtk_clipboard_get(GDK_SELECTION_PRIMARY), txt, -1);
+	gtk_clipboard_set_text(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), txt, -1);
+}
+
+static void TmrClipPaste_clicked(GtkWidget *widget, gpointer data)
+{
+	gchar *clip = gtk_clipboard_wait_for_text(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
+	if (clip == NULL) return;
+	switch ((int)data) {
+		case 0: CYCTmr1Cnt = atoi(clip); break;
+		case 1: CYCTmr2Cnt = atoi(clip); break;
+		case 2: CYCTmr3Cnt = atoi(clip); break;
+	}
+	g_free(clip);
+	TraceWindow_Render();
+}
+
 // -------
 // Viewers
 // -------
@@ -139,14 +168,14 @@ static int TraceView_exposure(SGtkXDrawingView *widg, int width, int height, int
 		}
 		sgtkx_drawing_view_drawfrect(widg, 0, y * 12, widg->width, 12, color);
 
-		if (pp >= 256) continue;
+		if (pp >= TRACECODE_LENGTH) continue;
 
 		// Get address from history
-		ppp = TRACAddr[(TRACPoint + (255 - pp) + 1) & 255];
+		ppp = TRACAddr[(TRACPoint + (TRACECODE_LENGTH - 1 - pp) + 1) % TRACECODE_LENGTH];
 
 		// Draw timelapse
-		if (pp == 255) sgtkx_drawing_view_drawtext(widg, 4, y * 12, 0x4C3000, "===>");
-		else sgtkx_drawing_view_drawtext(widg, 4, y * 12, 0x4C3000, "%4d", -255 + pp);
+		if (pp == (TRACECODE_LENGTH - 1)) sgtkx_drawing_view_drawtext(widg, 4, y * 12, 0x4C3000, "====>");
+		else sgtkx_drawing_view_drawtext(widg, 4, y * 12, 0x4C3000, "%5d", -(TRACECODE_LENGTH - 1) + pp);
 
 		if (ppp != 0xFFFFFFFF) {
 			// Decode instruction
@@ -154,14 +183,14 @@ static int TraceView_exposure(SGtkXDrawingView *widg, int width, int height, int
 			DisasmSingleOpcode(opcode, ppp, data, opcodename, &CDisAsm_SOpcDec);
 
 			// Draw instruction
-			sgtkx_drawing_view_drawtext(widg, 44, y * 12, 0x4C3000, "$%06X", ppp);
+			sgtkx_drawing_view_drawtext(widg, 52, y * 12, 0x4C3000, "$%06X", ppp);
 			if (size >= 1) sgtkx_drawing_view_drawtext(widg, 108, y * 12, 0x605020, "%02X", data[0]);
 			if (size >= 2) sgtkx_drawing_view_drawtext(widg, 124, y * 12, 0x605040, "%02X", data[1]);
 			if (size >= 3) sgtkx_drawing_view_drawtext(widg, 140, y * 12, 0x605060, "%02X", data[2]);
 			if (size >= 4) sgtkx_drawing_view_drawtext(widg, 156, y * 12, 0x605080, "%02X", data[3]);
-			sgtkx_drawing_view_drawtext(widg, 180, y * 12, 0x4C3000, "%s", opcodename);
+			sgtkx_drawing_view_drawtext(widg, 188, y * 12, 0x4C3000, "%s", opcodename);
 		} else {
-			sgtkx_drawing_view_drawtext(widg, 44, y * 12, 0x404040, "$------");
+			sgtkx_drawing_view_drawtext(widg, 52, y * 12, 0x404040, "$------");
 		}
 		pp++;
 	}
@@ -190,8 +219,8 @@ static int TraceView_buttonpress(SGtkXDrawingView *widg, int button, int press, 
 
 	// Process selected item
 	pp = widg->sboffset + ys;
-	if (pp >= 256) return 1;
-	ppp = TRACAddr[(TRACPoint + (255 - pp) + 1) & 255];
+	if (pp >= TRACECODE_LENGTH) return 1;
+	ppp = TRACAddr[(TRACPoint + (TRACECODE_LENGTH - 1 - pp) + 1) % TRACECODE_LENGTH];
 	if (button == SGTKXDV_BLEFT) {
 		if (ppp != 0xFFFFFFFF) {
 			ProgramView_GotoAddr(ppp, 1);
@@ -311,6 +340,10 @@ int TraceWindow_Create(void)
 	gtk_box_pack_start(VBox1, GTK_WIDGET(MenuBar), FALSE, TRUE, 0);
 	gtk_widget_show(GTK_WIDGET(MenuBar));
 
+	// Label that warn when running full speed
+	LabelRunFull = GTK_LABEL(gtk_label_new("To view content you must stop emulation or run in debug frames/steps."));
+	gtk_box_pack_start(VBox1, GTK_WIDGET(LabelRunFull), FALSE, TRUE, 0);
+
 	// Trace View
 	TraceView.on_exposure = SGtkXDVCB(TraceView_exposure);
 	TraceView.on_scroll = SGtkXDVCB(AnyView_scroll);
@@ -320,8 +353,8 @@ int TraceWindow_Create(void)
 	TraceView.on_enterleave = SGtkXDVCB(AnyView_enterleave);
 	TraceView.total_lines = 2;
 	sgtkx_drawing_view_new(&TraceView, 1);
-	sgtkx_drawing_view_sbminmax(&TraceView, 0, 255);
-	sgtkx_drawing_view_sbvalue(&TraceView, 255);
+	sgtkx_drawing_view_sbminmax(&TraceView, 0, TRACECODE_LENGTH - 1);
+	sgtkx_drawing_view_sbvalue(&TraceView, TRACECODE_LENGTH - 1);
 	gtk_widget_set_size_request(GTK_WIDGET(TraceView.box), 64, 64);
 	gtk_box_pack_start(VBox1, GTK_WIDGET(TraceView.box), TRUE, TRUE, 0);
 	gtk_widget_show(GTK_WIDGET(TraceView.box));
@@ -360,6 +393,18 @@ int TraceWindow_Create(void)
 		g_signal_connect(TmrClear[i], "clicked", G_CALLBACK(TmrClear_clicked), (gpointer)i);
 		gtk_box_pack_start(VBox2[i], GTK_WIDGET(TmrClear[i]), FALSE, TRUE, 0);
 		gtk_widget_show(GTK_WIDGET(TmrClear[i]));
+
+		// Timer clipboard copy button
+		TmrClipCopy[i] = GTK_BUTTON(gtk_button_new_with_label("Copy"));
+		g_signal_connect(TmrClipCopy[i], "clicked", G_CALLBACK(TmrClipCopy_clicked), (gpointer)i);
+		gtk_box_pack_start(VBox2[i], GTK_WIDGET(TmrClipCopy[i]), FALSE, TRUE, 0);
+		gtk_widget_show(GTK_WIDGET(TmrClipCopy[i]));
+
+		// Timer clipboard copy button
+		TmrClipPaste[i] = GTK_BUTTON(gtk_button_new_with_label("Paste"));
+		g_signal_connect(TmrClipPaste[i], "clicked", G_CALLBACK(TmrClipPaste_clicked), (gpointer)i);
+		gtk_box_pack_start(VBox2[i], GTK_WIDGET(TmrClipPaste[i]), FALSE, TRUE, 0);
+		gtk_widget_show(GTK_WIDGET(TmrClipPaste[i]));
 	}
 
 	return 1;
@@ -419,6 +464,19 @@ void TraceWindow_UpdateConfigs(void)
 	}
 
 	TraceWindow_InConfigs = 0;
+}
+
+void TraceWindow_Sensitive(int enabled)
+{
+	if (enabled) {
+		gtk_widget_hide(GTK_WIDGET(LabelRunFull));
+		gtk_widget_show(GTK_WIDGET(TraceView.box));
+		gtk_widget_show(GTK_WIDGET(HBox1));
+	} else {
+		gtk_widget_show(GTK_WIDGET(LabelRunFull));
+		gtk_widget_hide(GTK_WIDGET(TraceView.box));
+		gtk_widget_hide(GTK_WIDGET(HBox1));
+	}
 }
 
 void TraceWindow_Refresh(int now)

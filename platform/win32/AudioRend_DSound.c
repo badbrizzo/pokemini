@@ -134,7 +134,7 @@ static DWORD WINAPI AudioRend_DSound_Thread(LPVOID lpParameter)
 	DWORD dwData1Size;
 	LPVOID pData2;
 	DWORD dwData2Size;
-	DWORD play;
+	DWORD writep;
 	DWORD dwStatus;
 
 	while (RendThreadRun) {
@@ -151,9 +151,9 @@ static DWORD WINAPI AudioRend_DSound_Thread(LPVOID lpParameter)
 		// Wait until we sync the buffers
 		if (dwStatus && DSBSTATUS_PLAYING) {
 			do {
-				Sleep(2);
-				IDirectSoundBuffer_GetCurrentPosition(pDSBS, &play, 0);
-				if (Sound_Distance(play, SndNextWriteOffset) <= RendBuffblock) break;
+				Sleep(20);
+				IDirectSoundBuffer_GetCurrentPosition(pDSBS, 0, &writep);
+				if (Sound_Distance(writep, SndNextWriteOffset) <= RendBuffblock) break;
 			} while (RendThreadRun);
 		}
 

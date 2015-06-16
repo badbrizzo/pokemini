@@ -35,7 +35,7 @@ OBJS = \
  TraceWindow.o	\
  ExternalWindow.o	\
  FileAssociation.o	\
- sourcex/KeybSDLMap.o	\
+ sourcex/KeybMapSDL.o	\
  sourcex/GtkXDialogs.o	\
  sourcex/Font8x12.o	\
  sourcex/PokeMiniIcon_96x128.o	\
@@ -70,14 +70,12 @@ OBJS = \
  source/MinxColorPRC.o	\
  source/MinxLCD.o	\
  source/MinxAudio.o	\
- source/UI.o	\
+ source/NoUI.o	\
  source/Joystick.o	\
  source/Keyboard.o	\
  dependencies/minizip/unzip.o	\
  dependencies/minizip/ioapi.o	\
- resource/PokeMini_ColorPal.o	\
- resource/PokeMini_Font12.o	\
- resource/PokeMini_Icons12.o
+ resource/PokeMini_ColorPal.o
 
 DEPENDS_LOCAL = \
  PokeMini_Debug.h	\
@@ -100,7 +98,7 @@ DEPENDS_LOCAL = \
 
 DEPENDS = \
  freebios/freebios.h	\
- sourcex/KeybSDLMap.h	\
+ sourcex/KeybMapSDL.h	\
  sourcex/GtkXDialogs.h	\
  sourcex/Font8x12.h	\
  sourcex/PokeMiniIcon_96x128.h	\
@@ -135,9 +133,7 @@ DEPENDS = \
  source/Joystick.h	\
  dependencies/minizip/unzip.h	\
  dependencies/minizip/ioapi.h	\
- resource/PokeMini_ColorPal.h	\
- resource/PokeMini_Font12.h	\
- resource/PokeMini_Icons12.h
+ resource/PokeMini_ColorPal.h
 
 BUILDOBJS = $(addprefix $(BUILD)/, $(notdir $(OBJS)))
 DEPENDSHDR = $(addprefix $(POKEROOT), $(DEPENDS))

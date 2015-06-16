@@ -20,8 +20,8 @@
 			jcw jncw jzw jnzw jdbnz jint jl jle jg jge jo jno jns js
 			jnx0 jnx1 jnx2 jnx3 jx0 jx1 jx2 jx3
 		</keyword-class>
-		<keyword-class name="register">
-			f a b l h ba hl x y n i xi yi sp pc
+		<keyword-class name="pm_register">
+			f a b l h ba hl x y n i xi yi sp pc u v
 		</keyword-class>
 		<keyword-class name="directive_pmas">
 			.endm .endr .macro .macroicase .rept
@@ -31,17 +31,20 @@
 			.printf .error .warning .exit .end
 		</keyword-class>
 		<keyword-class name="pminit_macros">
-			pm_header cpu_clear pm_rominfo colorpm_init rirq
-			pm_align_map pm_align_tiles pm_align_spr pm_align_oam
+			pm_header cpu_clear set_f clear_f
+			pm_codeinfo pm_datainfo pm_rominfo colorpm_init
+			pm_align_map pm_align_tiles pm_align_bg pm_align_background pm_align_spr pm_align_oam pm_align_sprites
 			fjmp fjc fjnc fjz fjnz fjdbnz fjl fjle fjg fjge fjo fjno fjns fjs
 			fcall fcallc fcallnc fcallz fcallnz fcalll fcallle fcallg fcallge
 			fcallo fcallno fcallns fcalls
-			disable_mirq enable_mirq priority_irqs enable_irqs disable_irqs
+			rirq disable_mirq enable_mirq priority_irqs enable_irqs disable_irqs
+			add24x add24y add24hl add24x_a add24y_a add24hl_a
 		</keyword-class>
 		<keyword-class name="pminit_defines">
 			pminit_ver pm_gamecode flag_z flag_c flag_o flag_s flag_bcd flag_nibble flag_id flag_ib
 			sstack_base stack_base reg_base n_base vram_base vram spr_base
-			oam_base map_base map tilemap ram_base ram
+			oam_base map_base map tilemap ram_base ram_size symoutput ram
+			pm_startram pminit_rand pminit_keypad pminit_framecnt
 			sys_ctrl1 sys_ctrl2 sys_ctrl3 sys_batt sec_ctrl sec_cnt_lo sec_cnt_mid sec_cnt_hi
 			tmr1_scale tmr1_ena_osc tmr1_osc tmr2_scale tmr2_osc tmr3_scale tmr3_osc
 			irq_pri1 irq_pri2 irq_pri3 irq_ena1 irq_ena2 irq_ena3 irq_ena4 irq_act1 irq_act2 irq_act3 irq_act4
@@ -53,7 +56,7 @@
 			prc_map_base prc_spr_base prc_oam_base lcd_ctrl lcd_data
 			pokemini_chr pokemini_hex pokemini_num pokemini_uintb pokemini_sintb pokemini_uintw pokemini_uintwl pokemini_uintwh pokemini_sintw pokemini_sintwl pokemini_sintwh pokemini_fx8 pokemini_fx8l pokemini_fx8h
 			colorpm_cmd colorpm_ctrl colorpm_addr colorpm_addrl colorpm_addrh colorpm_data colorpm_lp0 colorpm_hp0 colorpm_lp1 colorpm_hp1
-			disable_irq enable_irq tmr2_enable tmrs_on tmrs_enable tmrs_osc1 tmrs_osc2 sec_enable sec_reset tmr256_enable tmr256_reset tmr_8bits tmr_16bits tmr_preset tmr_reset tmr_enable
+			disable_irq enable_irq tmr2_enable tmrs_on tmrs_enable tmrs_osc1 tmrs_osc2 sec_enable sec_reset low_battery tmr256_enable tmr256_reset tmr_8bits tmr_16bits tmr_preset tmr_reset tmr_enable
 			tmr_lo_div_off tmr_lo_div_disable tmr_lo_div_2 tmr_lo_div_8 tmr_lo_div_32 tmr_lo_div_64 tmr_lo_div_128 tmr_lo_div_256 tmr_lo_div_1024 tmr_lo_div_4096
 			tmr_lo_div2_off tmr_lo_div2_disable tmr_lo_div2_1 tmr_lo_div2_2 tmr_lo_div2_4 tmr_lo_div2_8 tmr_lo_div2_16 tmr_lo_div2_32 tmr_lo_div2_64 tmr_lo_div2_128
 			tmr_hi_div_off tmr_hi_div_disable tmr_hi_div_2 tmr_hi_div_8 tmr_hi_div_32 tmr_hi_div_64 tmr_hi_div_128 tmr_hi_div_256 tmr_hi_div_1024 tmr_hi_div_4096
@@ -123,14 +126,17 @@
 		<keyword-class name="macros">
 			<include-class name="pminit_macros"/>
 			<include-class name="pmmusic_macros"/>
+			<include-class name="pmclib_macros"/>
 		</keyword-class>
 		
 		<keyword-class name="functions">
+			<include-class name="pmclib_functions"/>
 		</keyword-class>
 		
 		<keyword-class name="defines">
 			<include-class name="pminit_defines"/>
 			<include-class name="pmmusic_defines"/>
+			<include-class name="pmclib_defines"/>
 		</keyword-class>
 		
 	</keyword-classes>
@@ -141,7 +147,7 @@
 		<use-keywords>
 			<keyword key="0" name="Instructions" class="instructions"/>
 			<keyword key="1" name="Functions" class="functions"/>
-			<keyword key="2" name="Registers" class="register"/>
+			<keyword key="2" name="Registers" class="pm_register"/>
 			<keyword key="3" name="Macros" class="macros"/>
 			<keyword key="4" name="Directives" class="directive_pmas"/>
 			<keyword key="5" name="Defines" class="defines"/>

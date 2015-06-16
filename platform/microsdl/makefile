@@ -18,7 +18,7 @@ INCDIRS = source sourcex resource freebios dependencies/minizip
 
 OBJS = \
  PokeMini_uSDL.o	\
- sourcex/KeybSDLMap.o	\
+ sourcex/KeybMapSDL.o	\
  freebios/freebios.o	\
  source/PMCommon.o	\
  source/PokeMini.o	\
@@ -48,7 +48,7 @@ OBJS = \
  resource/PokeMini_BG4.o
 
 DEPENDS = \
- sourcex/KeybSDLMap.h	\
+ sourcex/KeybMapSDL.h	\
  freebios/freebios.h	\
  source/IOMap.h	\
  source/PMCommon.h	\

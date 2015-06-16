@@ -1,6 +1,6 @@
 /*
   PokeMini - Pokémon-Mini Emulator
-  Copyright (C) 2009-2012  JustBurn
+  Copyright (C) 2009-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,6 +23,11 @@
 #include <math.h>
 
 #include <kos.h>
+#include <dc/spu.h>
+#include <dc/sound/sound.h>
+#include <arm/aica_cmd_iface.h>
+
+#define SPU_RAM_BASE    0xa0800000
 
 #include "PokeMini.h"
 #include "Hardware.h"
@@ -41,12 +46,15 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 int emurunning = 1;
 unsigned short *VIDEO;
 int PixPitch, ScOffP;
-snd_stream_hnd_t SoundStreamH;
 
 #define DC_CONT_TRG_DEAD	80
 #define DC_CONT_JOY_DEAD	40
 #define CONT_LTRIG	0x10000
 #define CONT_RTRIG	0x20000
+
+// Sound buffer size
+#define SOUNDBUFFER	2048
+#define PMSNDBUFFER	(SOUNDBUFFER*2)
 
 int VideoMode(int pal);
 
@@ -88,9 +96,11 @@ int DCJoy_KeysMapping[] = {
 // Custom command line (NEW IN 0.5.0)
 int clc_tvout_pal = 0;
 int clc_vmu_eeprom = 0;
+int clc_displayfps = 0;
 const TCommandLineCustom CustomConf[] = {
 	{ "tvout_pal", &clc_tvout_pal, COMMANDLINE_BOOL },
 	{ "vmu_eeprom", &clc_vmu_eeprom, COMMANDLINE_BOOL },
+	{ "displayfps", &clc_displayfps, COMMANDLINE_BOOL },
 	{ "", NULL, COMMANDLINE_EOL }
 };
 
@@ -100,6 +110,7 @@ TUIMenu_Item UIItems_Platform[] = {
 	PLATFORMDEF_GOBACK,
 	{ 0,  1, "TV Out: %s", UIItems_PlatformC },
 	{ 0,  2, "EEPROM: %s", UIItems_PlatformC },
+	{ 0,  3, "Display FPS: %s", UIItems_PlatformC },
 	{ 0,  9, "Define Joystick...", UIItems_PlatformC },
 	PLATFORMDEF_SAVEOPTIONS,
 	PLATFORMDEF_END(UIItems_PlatformC)
@@ -118,6 +129,9 @@ int UIItems_PlatformC(int index, int reason)
 			case 2: // VMU EEPROM
 				clc_vmu_eeprom = !clc_vmu_eeprom;
 				break;
+			case 3: // Display FPS
+				clc_displayfps = !clc_displayfps;
+				break;
 		}
 	}
 	if (reason == UIMENU_RIGHT) {
@@ -129,6 +143,9 @@ int UIItems_PlatformC(int index, int reason)
 			case 2: // VMU EEPROM
 				clc_vmu_eeprom = !clc_vmu_eeprom;
 				break;
+			case 3: // Display FPS
+				clc_displayfps = !clc_displayfps;
+				break;
 			case 9: // Define keys
 				JoystickEnterMenu();
 				break;
@@ -137,6 +154,7 @@ int UIItems_PlatformC(int index, int reason)
 	if (videochanged) VideoMode(clc_tvout_pal);
 	UIMenu_ChangeItem(UIItems_Platform, 1, "TV Out: %s", clc_tvout_pal ? "PAL" : "NTSC");
 	UIMenu_ChangeItem(UIItems_Platform, 2, "EEPROM: %s", clc_vmu_eeprom ? "Auto write to VMU" : "Write discarded");
+	UIMenu_ChangeItem(UIItems_Platform, 3, "Display FPS: %s", clc_displayfps ? "Yes" : "No");
 	return 1;
 }
 
@@ -184,14 +202,6 @@ void HandleKeys()
 }
 
 // Emulator sound
-int16_t soundsamp[SND_STREAM_BUFFER_MAX/8 + 1024];
-void *emulatorsound(snd_stream_hnd_t hnd, int smp_req, int *smp_recv)	// smp_* is actually bytes?
-{
-	MinxAudio_GenerateEmulatedS16(soundsamp, smp_req>>1, 1);
-	*smp_recv = smp_req;
-	return soundsamp;
-}
-
 enum {
 	soundstate_idle,
 	soundstate_start,
@@ -202,41 +212,82 @@ enum {
 };
 volatile int emulatorsoundstate = soundstate_idle;
 static semaphore_t *emulatorsound_sem = NULL;
+int16_t soundsamp[SOUNDBUFFER / 2];
 void *emulatorsoundthr(void *ptr)
 {
-	snd_stream_hnd_t SoundStreamH;
-	emulatorsound_sem = sem_create(0);
+	AICA_CMDSTR_CHANNEL(tmp, cmd, chan);
+	int sndpos, buff_sndpos;
+	uint32 soundptr;
 
-	snd_stream_init();
-	SoundStreamH = snd_stream_alloc(NULL, SND_STREAM_BUFFER_MAX/8);
+	snd_init();
+	emulatorsound_sem = sem_create(0);
+	buff_sndpos = SOUNDBUFFER;
+
+	// Allocate sound buffer
+	soundptr = snd_mem_malloc(PMSNDBUFFER);
+	spu_memset(soundptr, 0x00, PMSNDBUFFER);
+	snd_sh4_to_aica_stop();
+
+	// Setup channel
+	cmd->cmd = AICA_CMD_CHAN;
+	cmd->timestamp = 0;
+	cmd->size = AICA_CMDSTR_CHANNEL_SIZE;
+	cmd->cmd_id = 0;	// (1 << 0)
+	chan->cmd = AICA_CH_CMD_START | AICA_CH_START_DELAY;
+	chan->base = soundptr;
+	chan->type = AICA_SM_16BIT;
+	chan->length = PMSNDBUFFER / 2;
+	chan->loop = 1;
+	chan->loopstart = 0;
+	chan->loopend = PMSNDBUFFER / 2;
+	chan->freq = MINX_AUDIOFREQ;
+	chan->vol = 255;
+	chan->pan = 128;
+	snd_sh4_to_aica(tmp, cmd->size);
+	snd_sh4_to_aica_start();
+
 	while (emulatorsoundstate != soundstate_end) {
 		switch(emulatorsoundstate) {
 			case soundstate_idle:
 				sem_wait(emulatorsound_sem);
 				break;
 			case soundstate_start:
-				snd_stream_reinit(SoundStreamH, emulatorsound);
-				snd_stream_start(SoundStreamH, MINX_AUDIOFREQ, 0);
-				snd_stream_volume(SoundStreamH, 255);
+				cmd->cmd_id = 1 << 0;
+				chan->cmd = AICA_CH_CMD_START | AICA_CH_START_SYNC;
+				snd_sh4_to_aica(tmp, cmd->size);
 				emulatorsoundstate = soundstate_playing;
 				break;
 			case soundstate_playing:
-				if (snd_stream_poll(SoundStreamH) < 0) {
-					snd_stream_stop(SoundStreamH);
-					snd_stream_reinit(SoundStreamH, emulatorsound);
-					snd_stream_start(SoundStreamH, MINX_AUDIOFREQ, 0);
-					snd_stream_volume(SoundStreamH, 255);
-				}
+				sndpos = g2_read_32(SPU_RAM_BASE + AICA_CHANNEL(0) + offsetof(aica_channel_t, pos)) << 1;
+				while(buff_sndpos < sndpos && (buff_sndpos + SOUNDBUFFER) > sndpos) {
+					thd_pass();
+					sndpos = g2_read_32(SPU_RAM_BASE + AICA_CHANNEL(0) + offsetof(aica_channel_t, pos)) << 1;
+				};
+				MinxAudio_GenerateEmulatedS16(soundsamp, SOUNDBUFFER / 2, 1);
+				spu_memload(soundptr + buff_sndpos, soundsamp, SOUNDBUFFER);
+				buff_sndpos += SOUNDBUFFER;
+				if (buff_sndpos >= PMSNDBUFFER) buff_sndpos = 0;
 				break;
 			case soundstate_stop:
-				if (emulatorsoundstate != soundstate_idle) snd_stream_stop(SoundStreamH);
+				if (emulatorsoundstate != soundstate_idle) {
+					snd_sh4_to_aica_stop();
+					cmd->cmd_id = 1 << 0;
+					chan->cmd = AICA_CH_CMD_STOP;
+					snd_sh4_to_aica(tmp, cmd->size);
+					spu_memset(soundptr, 0x00, PMSNDBUFFER);
+					snd_sh4_to_aica_start();
+				}
 				emulatorsoundstate = soundstate_idle;
 				break;
 		}
 		thd_pass();
 	}
-	snd_stream_destroy(SoundStreamH);
-	snd_stream_shutdown();
+	snd_sh4_to_aica_stop();
+	cmd->cmd_id = 1 << 0;
+	chan->cmd = AICA_CH_CMD_STOP;
+	snd_sh4_to_aica(tmp, cmd->size);
+	snd_sh4_to_aica_start();
+	snd_mem_free(soundptr);
 	emulatorsoundstate = soundstate_endok;
 
 	return NULL;
@@ -497,6 +548,9 @@ void menuloop()
 		// Handle keys
 		HandleKeys();
 
+		// Process UI
+		UIMenu_Process();
+
 		// Screen rendering
 		UIMenu_Display_16((uint16_t *)VIDEOOFF, PixPitch);
 
@@ -520,7 +574,7 @@ void menuloop()
 int main(int argc, char **argv)
 {
 	int rumbling_old = 0;
-	uint64 time = 0, nexttime = 0;
+	char fpstxt[16];
 
 	// Setup custom EEPROM access
 	PokeMini_PreConfigLoad = loadConfs;
@@ -565,7 +619,7 @@ int main(int argc, char **argv)
 
 	// Setup palette and LCD mode
 	PokeMini_VideoPalette_Init(PokeMini_BGR16, 1);
-	PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal);
+	PokeMini_VideoPalette_Index(CommandLine.palette, CommandLine.custompal, CommandLine.lcdcontrast, CommandLine.lcdbright);
 	PokeMini_ApplyChanges();
 
 	// Load stuff
@@ -580,6 +634,9 @@ int main(int argc, char **argv)
 	enablesound(CommandLine.sound);
 
 	// Emulator's loop
+	uint64 time = 0, nexttime = 0, fpsnexttime = 0;
+	int fps = 72, fpscnt = 0;
+	strcpy(fpstxt, "");
 	while (emurunning) {
 		// Emulate 1 frame
 		PokeMini_EmulateFrame();
@@ -601,6 +658,18 @@ int main(int argc, char **argv)
 				PokeMini_VideoBlit(VIDEO, PixPitch);
 			}
 			LCDDirty--;
+		}
+
+		// Display FPS counter
+		if (clc_displayfps) {
+			time = timer_us_gettime64();
+			if (time >= fpsnexttime) {
+				fpsnexttime = time + 1000000;
+				fps = fpscnt;
+				fpscnt = 0;
+				sprintf(fpstxt, "%i FPS", fps);
+			} else fpscnt++;
+			UIDraw_String_16(VIDEO, PixPitch, 4, 4, 10, fpstxt, UI_Font1_Pal16);
 		}
 
 		// Handle keys

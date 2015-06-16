@@ -1,13 +1,11 @@
-#ifndef IDI_POKEMINI
+#ifndef IDI_ICON1
 #ifdef DEBUGGER
-IDI_ICON1	ICON	"PokeDebug.ico"
-IDI_ICON2	ICON	"PokeMini.ico"
+IDI_ICON1	ICON	"Icon_PkGn_48.ico"
 #else
-IDI_ICON1	ICON	"PokeMini.ico"
-IDI_ICON2	ICON	"PokeDebug.ico"
+IDI_ICON1	ICON	"Icon_PkBl_48.ico"
 #endif
-IDI_ICON3	ICON	"Min1Cartridge.ico"
-IDI_ICON4	ICON	"Min2Cartridge.ico"
+IDI_ICON2	ICON	"Icon_Min1_48.ico"
+IDI_ICON3	ICON	"Icon_Min2_48.ico"
 #endif
 
 #ifndef VERSIONINFO
@@ -32,7 +30,7 @@ BEGIN
 	BEGIN
 		BLOCK "040904b0"
 		BEGIN
-			VALUE "Comments", "A Pokémon-Mini Emulator\r\nhttp://code.google.com/p/pokemini/\r\nhttp://www.pokemon-mini.net/"
+			VALUE "Comments", "A Pokémon-Mini Emulator\r\nhttp://pokemini.sourceforge.net/\r\nhttp://www.pokemon-mini.net/"
 			VALUE "CompanyName", "JustBurn, Team Pokeme"
 			VALUE "FileDescription", "Portable Pokémon Mini Emulator"
 			VALUE "FileVersion", RES_VERSION_STR

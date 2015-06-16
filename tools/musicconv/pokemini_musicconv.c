@@ -1,6 +1,6 @@
 /*
   PokeMini Music Converter
-  Copyright (C) 2011-2012  JustBurn
+  Copyright (C) 2011-2015  JustBurn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <signal.h>
 
 #include "saudio_al.h"
 #include "raw_input.h"
@@ -32,7 +33,7 @@
 #include "pokemini_musicconv.h"
 #include "pm_music.h"
 
-#define VERSION_STR	"v1.2"
+#define VERSION_STR	"v1.4"
 #define EXPORT_STR	"Music exported with PokeMini Music Converter " VERSION_STR
 
 #define STR_MTIME	"%s_mastertime"
@@ -40,6 +41,12 @@
 #define STR_COMPOSER	"%s_composer"
 #define STR_PROGRAMMER	"%s_programmer"
 #define STR_DESCRIPTION	"%s_description"
+#define STR_NUMPAT	"%s_numpat"
+#define STR_NUMBGM	"%s_numbgm"
+#define STR_NUMSFX	"%s_numsfx"
+
+#define STR_APPEND_SFX	"_sfxlist"
+#define STR_APPEND_BGM	"_bgmlist"
 
 // Sound buffer size
 #define SOUNDBUFFER	2048
@@ -55,6 +62,7 @@ int p_comment = 0;
 int p_brace = 0;
 int p_dloop = 0;
 int p_bpat = 0, p_bpatloop = -1;
+int notbreak = 1;
 
 pmmusic_list *musiclist;
 pmmusic_pattern *macro_pat[26] = {NULL};
@@ -69,6 +77,9 @@ struct {
 	int format;		// 1 = Asm, 2 = C
 	char out_f[128];	// Output file
 	char outh_f[128];	// Output header file
+	char outl_f[128];	// Output sound list file
+	char sfx_v[128];	// SFX variable name
+	char bgm_v[128];	// BGM variable name
 	char rec_f[128];	// Record music file
 	char play_v[128];	// Playback variable name
 } confs;
@@ -80,13 +91,15 @@ struct {
 	char description[256];	// Description
 	uint8_t ram[256];	// RAM content for modules
 	int vollevel;		// Volume level: 0 = MML (0 to 15), 1 = System (0 to 3)
+	int octrev;		// Reverse octave characters?
+	int shortq;		// Shorter quantize range?
 	int mastertime_set;	// Master time has been set?
 	int mastertime_val;	// Master time value
 	struct {
 		int wait;	// Wait
 		int note;	// Note
-		int note2;	// Note 2 (Portamento & Arpeggio)
-		int note3;	// Note 3 (Arpeggio)
+		int note2;	// Note 2 for effects
+		int note3;	// Note 3 for effects
 		int ramaddr;	// RAM address
 		int ramdata;	// RAM data
 		int length;	// Length
@@ -102,8 +115,8 @@ struct {
 	struct {
 		int wait;	// Wait
 		int note;	// Note
-		int note2;	// Note 2 (Portamento & Arpeggio)
-		int note3;	// Note 3 (Arpeggio)
+		int note2;	// Note 2 for effects
+		int note3;	// Note 3 for effects
 		int ramaddr;	// RAM address
 		int ramdata;	// RAM data
 		int length;	// Length
@@ -112,11 +125,18 @@ struct {
 		int pulse;	// Pulse-width
 		int quantize;	// Quantize
 		int arpptr;	// Arpeggio pointer
-		int efftype;	// Effect type (0=Disabled, 1=Arpeggio, 2=Portamento)
+		int efftype;	// Effect type
 		int efftick;	// Effect ticks
 		int sustain;	// Sustain
 	} def;
 } musicsh;
+
+enum {
+	EFFECT_DISABLED,
+	EFFECT_ARPEGGIO,
+	EFFECT_PORTAMENTO,
+	EFFECT_RANDOM
+} EffectsTypes;
 
 // ---------- Conf ----------
 
@@ -141,13 +161,20 @@ int load_confs_args(int argc, char **argv)
 			else if (!strcasecmp(*argv, "-in")) { if (*++argv) strncpy(confs.mus_f, *argv, 127); }
 			else if (!strcasecmp(*argv, "-input")) { if (*++argv) strncpy(confs.mus_f, *argv, 127); }
 			else if (!strcasecmp(*argv, "-o")) { if (*++argv) strncpy(confs.out_f, *argv, 127); }
-			else if (!strcasecmp(*argv, "-oh")) { if (*++argv) strncpy(confs.outh_f, *argv, 127); }
-			else if (!strcasecmp(*argv, "-vh")) { if (*++argv) strncpy(confs.mus_v, *argv, 127); }
 			else if (!strcasecmp(*argv, "-out")) { if (*++argv) strncpy(confs.out_f, *argv, 127); }
-			else if (!strcasecmp(*argv, "-outheader")) { if (*++argv) strncpy(confs.outh_f, *argv, 127); }
-			else if (!strcasecmp(*argv, "-varheader")) { if (*++argv) strncpy(confs.mus_v, *argv, 127); }
 			else if (!strcasecmp(*argv, "-output")) { if (*++argv) strncpy(confs.out_f, *argv, 127); }
+			else if (!strcasecmp(*argv, "-oh")) { if (*++argv) strncpy(confs.outh_f, *argv, 127); }
+			else if (!strcasecmp(*argv, "-outheader")) { if (*++argv) strncpy(confs.outh_f, *argv, 127); }
 			else if (!strcasecmp(*argv, "-outputheader")) { if (*++argv) strncpy(confs.outh_f, *argv, 127); }
+			else if (!strcasecmp(*argv, "-ol")) { if (*++argv) strncpy(confs.outl_f, *argv, 127); }
+			else if (!strcasecmp(*argv, "-outlist")) { if (*++argv) strncpy(confs.outl_f, *argv, 127); }
+			else if (!strcasecmp(*argv, "-outputlist")) { if (*++argv) strncpy(confs.outl_f, *argv, 127); }
+			else if (!strcasecmp(*argv, "-vh")) { if (*++argv) strncpy(confs.mus_v, *argv, 127); }
+			else if (!strcasecmp(*argv, "-varheader")) { if (*++argv) strncpy(confs.mus_v, *argv, 127); }
+			else if (!strcasecmp(*argv, "-vsfx")) { if (*++argv) strncpy(confs.sfx_v, *argv, 127); }
+			else if (!strcasecmp(*argv, "-varsfx")) { if (*++argv) strncpy(confs.sfx_v, *argv, 127); }
+			else if (!strcasecmp(*argv, "-vbgm")) { if (*++argv) strncpy(confs.bgm_v, *argv, 127); }
+			else if (!strcasecmp(*argv, "-varbgm")) { if (*++argv) strncpy(confs.bgm_v, *argv, 127); }
 			else if (!strcasecmp(*argv, "-snddirect")) confs.sndengine = MINX_AUDIO_DIRECT;
 			else if (!strcasecmp(*argv, "-sndemulated")) confs.sndengine = MINX_AUDIO_EMULATED;
 			else if (!strcasecmp(*argv, "-piezo")) confs.sndfilter = 1;
@@ -188,19 +215,21 @@ int N_Note[7*12] = {
 // Get note frequency from offsets
 uint16_t getnotefreq(int noteoff, int octoff)
 {
+	octoff--;
 	int num = (octoff * 12) + (noteoff - 12);
+	if ((num < 0) || (num >= (7*12))) return 0xFFFF;
 	if (num < 0) num = 0;
 	if (num >= (7*12)) num = 7*12-1;
 	return N_Note[num];
 }
 
-// Level: 0 = Error/Warning, 1 = Default, 2 = Verbose, 3 = Super-verbose
+// Level: -1 = Error, 0 = Warning, 1 = Default, 2 = Verbose, 3 = Super-verbose
 void Pprintf(int level, const char *fmt, ...)
 {
 	va_list args;
 
 	// Permission
-	if (level != 0) {
+	if (level > 0) {
 		if (confs.quiet) return;
 		if ((level == 2) && (confs.verbose < 1)) return;
 		if ((level == 3) && (confs.verbose < 2)) return;
@@ -208,7 +237,8 @@ void Pprintf(int level, const char *fmt, ...)
 
 	// Output
 	va_start(args, fmt);
-	printf("%s[%i] ", p_file, p_line);
+	if (level >= 0) printf("%s[%i] ", p_file, p_line);
+	else fprintf(stderr, "%s[%i] ", p_file, p_line);
 	vprintf(fmt, args);
 	va_end(args);
 }
@@ -278,7 +308,6 @@ void pattern_addnote(pmmusic_pattern *pattern, int wait, int portoff, int portto
 	pmmusic_cmd cmd;
 	int posfx;
 	if (wait <= 0) wait = 1;
-		 //(0=Disabled, 1=Arpeggio, 2=Portamento)
 	do {
 		// Wait
 		cmd.wait = (wait > 255) ? 255 : wait;
@@ -287,13 +316,16 @@ void pattern_addnote(pmmusic_pattern *pattern, int wait, int portoff, int portto
 		cmd.flags = PMMUSIC_FLAG_VOL;
 		if (preset >= 0) cmd.flags |= PMMUSIC_FLAG_PRESET | PMMUSIC_FLAG_PIVOT;
 		if (musicsh.cur.ramaddr >= 0) cmd.flags |= PMMUSIC_FLAG_WRITERAM;
-		// Arp
-		if (musicsh.cur.efftype == 1) {
+		// Effects
+		if (musicsh.cur.efftype == EFFECT_ARPEGGIO) {
 			if (musicsh.def.arpptr == 0) cmd.preset = preset;
 			else if (musicsh.def.arpptr == 1) cmd.preset = preset2;
 			else if (musicsh.def.arpptr == 2) cmd.preset = preset3;
-		} else if (musicsh.cur.efftype == 2) {
+		} else if (musicsh.cur.efftype == EFFECT_PORTAMENTO) {
 			posfx = portoff * 32768 / porttot;
+			cmd.preset = ((32768-posfx) * preset + posfx * preset2) >> 15;
+		} else if (musicsh.cur.efftype == EFFECT_RANDOM) {
+			posfx = rand() & 32767;
 			cmd.preset = ((32768-posfx) * preset + posfx * preset2) >> 15;
 		} else cmd.preset = preset;
 		// Setup and send command
@@ -365,13 +397,13 @@ int parse_pattern(const char *s, int sfx, pmmusic_pattern *pattern)
 			case ' ': case '\t': case '\n': // Ignore
 				break;
 			case '{': if (p_brace) {
-					Pprintf(0, "Error: Open brace already declared\n");
+					Pprintf(-1, "Error: Open brace already declared\n");
 					exit(1);
 				}
 				p_brace++;
 				break;
 			case '}': if (!p_brace) {
-					Pprintf(0, "Error: Closing brace without open\n");
+					Pprintf(-1, "Error: Closing brace without open\n");
 					exit(1);
 				}
 				p_brace--;
@@ -385,13 +417,13 @@ int parse_pattern(const char *s, int sfx, pmmusic_pattern *pattern)
 				pmmusic_addCMD(pattern, &cmd, -1);
 				p_dloop++;
 				if (p_dloop == 3) {
-					Pprintf(0, "Error: Number of loops exceeded\n");
+					Pprintf(-1, "Error: Number of loops exceeded\n");
 					exit(1);
 				}
 				break;
 			case ']': // Loop end
 				if (sfx) {
-					Pprintf(0, "Error: Looping isn't supported in SFX\n");
+					Pprintf(-1, "Error: Looping isn't supported in SFX\n");
 					exit(1);
 				}
 				if (p_dloop) {
@@ -399,7 +431,7 @@ int parse_pattern(const char *s, int sfx, pmmusic_pattern *pattern)
 					num = 2;
 					s = readmus_num(s, &num, 2);
 					if (num <= 0) {
-						Pprintf(0, "Error: Number of loops need to be >= 1\n");
+						Pprintf(-1, "Error: Number of loops need to be >= 1\n");
 						exit(1);
 					}
 					Pprintf(3, "Info: Ending loop %i (num=%i)\n", p_dloop, num);
@@ -409,7 +441,7 @@ int parse_pattern(const char *s, int sfx, pmmusic_pattern *pattern)
 					cmd.loop_num = num - 1;
 					pmmusic_addCMD(pattern, &cmd, -1);
 				} else {
-					Pprintf(0, "Error: Closing loop without open\n");
+					Pprintf(-1, "Error: Closing loop without open\n");
 					exit(1);
 				}
 				break;
@@ -420,6 +452,8 @@ int parse_pattern(const char *s, int sfx, pmmusic_pattern *pattern)
 				else if (s[1] == '#') { noteid = 1; s++; }
 				num = musicsh.cur.length;
 				s = readmus_num(s, &num, 2);
+				if ((s[1] == '.') && (s[2] == '.') && (s[3] == '.') && (s[4] == '.')) { dnum = (double)num / 1.9375; s += 4; }
+				if ((s[1] == '.') && (s[2] == '.') && (s[3] == '.')) { dnum = (double)num / 1.875; s += 3; }
 				if ((s[1] == '.') && (s[2] == '.')) { dnum = (double)num / 1.75; s += 2; }
 				if (s[1] == '.') { dnum = (double)num / 1.5; s++; }
 				else dnum = (double)num;
@@ -432,6 +466,8 @@ int parse_pattern(const char *s, int sfx, pmmusic_pattern *pattern)
 				else if (s[1] == '#') { noteid = 3; s++; }
 				num = musicsh.cur.length;
 				s = readmus_num(s, &num, 2);
+				if ((s[1] == '.') && (s[2] == '.') && (s[3] == '.') && (s[4] == '.')) { dnum = (double)num / 1.9375; s += 4; }
+				if ((s[1] == '.') && (s[2] == '.') && (s[3] == '.')) { dnum = (double)num / 1.875; s += 3; }
 				if ((s[1] == '.') && (s[2] == '.')) { dnum = (double)num / 1.75; s += 2; }
 				if (s[1] == '.') { dnum = (double)num / 1.5; s++; }
 				else dnum = (double)num;
@@ -444,6 +480,8 @@ int parse_pattern(const char *s, int sfx, pmmusic_pattern *pattern)
 				else if (s[1] == '#') { noteid = 5; s++; }
 				num = musicsh.cur.length;
 				s = readmus_num(s, &num, 2);
+				if ((s[1] == '.') && (s[2] == '.') && (s[3] == '.') && (s[4] == '.')) { dnum = (double)num / 1.9375; s += 4; }
+				if ((s[1] == '.') && (s[2] == '.') && (s[3] == '.')) { dnum = (double)num / 1.875; s += 3; }
 				if ((s[1] == '.') && (s[2] == '.')) { dnum = (double)num / 1.75; s += 2; }
 				if (s[1] == '.') { dnum = (double)num / 1.5; s++; }
 				else dnum = (double)num;
@@ -456,6 +494,8 @@ int parse_pattern(const char *s, int sfx, pmmusic_pattern *pattern)
 				else if (s[1] == '#') { noteid = 6; s++; }
 				num = musicsh.cur.length;
 				s = readmus_num(s, &num, 2);
+				if ((s[1] == '.') && (s[2] == '.') && (s[3] == '.') && (s[4] == '.')) { dnum = (double)num / 1.9375; s += 4; }
+				if ((s[1] == '.') && (s[2] == '.') && (s[3] == '.')) { dnum = (double)num / 1.875; s += 3; }
 				if ((s[1] == '.') && (s[2] == '.')) { dnum = (double)num / 1.75; s += 2; }
 				if (s[1] == '.') { dnum = (double)num / 1.5; s++; }
 				else dnum = (double)num;
@@ -468,6 +508,8 @@ int parse_pattern(const char *s, int sfx, pmmusic_pattern *pattern)
 				else if (s[1] == '#') { noteid = 8; s++; }
 				num = musicsh.cur.length;
 				s = readmus_num(s, &num, 2);
+				if ((s[1] == '.') && (s[2] == '.') && (s[3] == '.') && (s[4] == '.')) { dnum = (double)num / 1.9375; s += 4; }
+				if ((s[1] == '.') && (s[2] == '.') && (s[3] == '.')) { dnum = (double)num / 1.875; s += 3; }
 				if ((s[1] == '.') && (s[2] == '.')) { dnum = (double)num / 1.75; s += 2; }
 				if (s[1] == '.') { dnum = (double)num / 1.5; s++; }
 				else dnum = (double)num;
@@ -480,6 +522,8 @@ int parse_pattern(const char *s, int sfx, pmmusic_pattern *pattern)
 				else if (s[1] == '#') { noteid = 10; s++; }
 				num = musicsh.cur.length;
 				s = readmus_num(s, &num, 2);
+				if ((s[1] == '.') && (s[2] == '.') && (s[3] == '.') && (s[4] == '.')) { dnum = (double)num / 1.9375; s += 4; }
+				if ((s[1] == '.') && (s[2] == '.') && (s[3] == '.')) { dnum = (double)num / 1.875; s += 3; }
 				if ((s[1] == '.') && (s[2] == '.')) { dnum = (double)num / 1.75; s += 2; }
 				if (s[1] == '.') { dnum = (double)num / 1.5; s++; }
 				else dnum = (double)num;
@@ -492,6 +536,8 @@ int parse_pattern(const char *s, int sfx, pmmusic_pattern *pattern)
 				else if (s[1] == '#') { noteid = 12; s++; }
 				num = musicsh.cur.length;
 				s = readmus_num(s, &num, 2);
+				if ((s[1] == '.') && (s[2] == '.') && (s[3] == '.') && (s[4] == '.')) { dnum = (double)num / 1.9375; s += 4; }
+				if ((s[1] == '.') && (s[2] == '.') && (s[3] == '.')) { dnum = (double)num / 1.875; s += 3; }
 				if ((s[1] == '.') && (s[2] == '.')) { dnum = (double)num / 1.75; s += 2; }
 				if (s[1] == '.') { dnum = (double)num / 1.5; s++; }
 				else dnum = (double)num;
@@ -500,6 +546,8 @@ int parse_pattern(const char *s, int sfx, pmmusic_pattern *pattern)
 			case 'r': // Rest
 				num = musicsh.cur.length;
 				s = readmus_num(s, &num, 2);
+				if ((s[1] == '.') && (s[2] == '.') && (s[3] == '.') && (s[4] == '.')) { dnum = (double)num / 1.9375; s += 4; }
+				if ((s[1] == '.') && (s[2] == '.') && (s[3] == '.')) { dnum = (double)num / 1.875; s += 3; }
 				if ((s[1] == '.') && (s[2] == '.')) { dnum = (double)num / 1.75; s += 2; }
 				if (s[1] == '.') { dnum = (double)num / 1.5; s++; }
 				else dnum = (double)num;
@@ -514,6 +562,16 @@ int parse_pattern(const char *s, int sfx, pmmusic_pattern *pattern)
 			case '%': // Pulse-width
 				num = musicsh.cur.pulse;
 				s = readmus_num(s, &num, 2);
+				if (num < 0) num = 0;
+				if (num > 255) num = 255;
+				Pprintf(3, "Info: Pulse-width %i (%i%%)\n", num, num * 100 / 255);
+				musicsh.cur.pulse = num;
+				break;
+			case '\\': // Pulse-width in percentage
+			case '/':
+				num = musicsh.cur.pulse;
+				s = readmus_num(s, &num, 2);
+				num = num * 255 / 100;
 				if (num < 0) num = 0;
 				if (num > 255) num = 255;
 				Pprintf(3, "Info: Pulse-width %i (%i%%)\n", num, num * 100 / 255);
@@ -554,18 +612,18 @@ int parse_pattern(const char *s, int sfx, pmmusic_pattern *pattern)
 				num = 0;
 				s = readmus_num(s, &num, 2);
 				if (s[1] != ':') {
-					Pprintf(0, "Error: Missing ':' in write to RAM\n");
+					Pprintf(-1, "Error: Missing ':' in write to RAM\n");
 					exit(1);
 				}
 				s++;
 				num2 = 0;
 				s = readmus_num(s, &num2, 2);
 				if ((num < 0) || (num > 255)) {
-					Pprintf(0, "Error: Write to RAM address out of range\n");
+					Pprintf(-1, "Error: Write to RAM address out of range\n");
 					exit(1);
 				}
 				if ((num2 < 0) || (num2 > 255)) {
-					Pprintf(0, "Error: Write to RAM address out of range\n");
+					Pprintf(-1, "Error: Write to RAM address out of range\n");
 					exit(1);
 				}
 				Pprintf(3, "Info: Write RAM[$%02X]=$%02X\n", num & 255, num2 & 255);
@@ -584,28 +642,47 @@ int parse_pattern(const char *s, int sfx, pmmusic_pattern *pattern)
 				musicsh.cur.length = num;
 				break;
 			case '>': // Increase octave
-				musicsh.cur.octave++;
-				if (musicsh.cur.octave > 7) musicsh.cur.octave = 7;
+				if (!musicsh.octrev) {
+					musicsh.cur.octave++;
+					if (musicsh.cur.octave > 9) musicsh.cur.octave = 9;
+				} else {
+					musicsh.cur.octave--;
+					if (musicsh.cur.octave < 1) musicsh.cur.octave = 1;
+				}
 				break;
 			case '<': // Decrease octave
-				musicsh.cur.octave--;
-				if (musicsh.cur.octave < 1) musicsh.cur.octave = 1;
+				if (!musicsh.octrev) {
+					musicsh.cur.octave--;
+					if (musicsh.cur.octave < 1) musicsh.cur.octave = 1;
+				} else {
+					musicsh.cur.octave++;
+					if (musicsh.cur.octave > 9) musicsh.cur.octave = 9;
+				}
 				break;
 			case 'o': // Octave
 				num = musicsh.cur.octave;
 				s = readmus_num(s, &num, 1);
 				if (num < 1) num = 1;
-				if (num > 7) num = 7;
+				if (num > 9) num = 9;
 				Pprintf(3, "Info: Octave %i\n", num);
 				musicsh.cur.octave = num;
 				break;
 			case 'q': // Quantize
-				num = musicsh.cur.quantize;
-				s = readmus_num(s, &num, 2);
-				if (num < 0) num = 0;
-				if (num > 64) num = 64;
-				Pprintf(3, "Info: Quantize %i (%i%%)\n", num, num * 100 / 64);
-				musicsh.cur.quantize = num;
+				if (!musicsh.shortq) {
+					num = musicsh.cur.quantize;
+					s = readmus_num(s, &num, 2);
+					if (num < 0) num = 0;
+					if (num > 64) num = 64;
+					Pprintf(3, "Info: Quantize %i (%i%%)\n", num, num * 100 / 64);
+					musicsh.cur.quantize = num;
+				} else {
+					num = (musicsh.cur.quantize / 7) - 1;
+					s = readmus_num(s, &num, 2);
+					if (num < 0) num = 0;
+					if (num > 8) num = 8;
+					musicsh.cur.quantize = (num + 1) * 7;
+					Pprintf(3, "Info: Quantize %i (%i%%)\n", num, musicsh.cur.quantize * 100 / 64);
+				}
 				break;
 			case 's': // Sustain
 				num = musicsh.cur.sustain;
@@ -628,33 +705,45 @@ int parse_pattern(const char *s, int sfx, pmmusic_pattern *pattern)
 						break;
 					case 'd': // Disable
 						Pprintf(3, "Info: Effect type = Disabled\n");
-						musicsh.cur.efftype = 0;
+						musicsh.cur.efftype = EFFECT_DISABLED;
 						break;
 					case 'a': // Arpeggio
 						num = 0;
 						s = readmus_num(s, &num, 2);
 						musicsh.cur.note2 = num;
 						if (s[1] != ':') {
-							Pprintf(0, "Error: Missing ':' in write to RAM\n");
+							Pprintf(-1, "Error: Missing ':' in write to RAM\n");
 							exit(1);
 						}
 						s++;
 						num2 = 0;
 						s = readmus_num(s, &num2, 2);
 						musicsh.cur.note3 = num2;
-						musicsh.cur.efftype = 1;
+						musicsh.cur.efftype = EFFECT_ARPEGGIO;
 						Pprintf(3, "Info: Effect type = Arpeggio (Notes=%i,%i)\n", musicsh.cur.note2, musicsh.cur.note3);
 						break;
 					case 'p': // Portamento
 						num = 0;
 						s = readmus_num(s, &num, 2);
 						musicsh.cur.note2 = num;
-						musicsh.cur.efftype = 2;
+						musicsh.cur.efftype = EFFECT_PORTAMENTO;
 						Pprintf(3, "Info: Effect type = Portamento (Note=%i)\n", musicsh.cur.note2);
+						break;
+					case 'r': // Random between
+						num = 0;
+						s = readmus_num(s, &num, 2);
+						musicsh.cur.note2 = num;
+						musicsh.cur.efftype = EFFECT_RANDOM;
+						Pprintf(3, "Info: Effect type = Random Between (Note=%i)\n", musicsh.cur.note2);
+						break;
+					case 's': // Random seed
+						num = 1;
+						s = readmus_num(s, &num, 8);
+						srand (num);
+						Pprintf(3, "Info: Effect type = Random Seed (Seed=%i)\n", musicsh.cur.note2);
 						break;
 					default: // Invalid
 						Pprintf(0, "Warning: Unknown character '%c' in effect\n", *s);
-						exit(1);
 						break;
 				}
 				break;
@@ -672,7 +761,7 @@ int parse_pattern(const char *s, int sfx, pmmusic_pattern *pattern)
 			case 'Y': case 'Z': // Macro
 				num = *s - 'A';
 				if (!macro_pat[num]) {
-					Pprintf(0, "Error: Macro %c not defined\n", *s);
+					Pprintf(-1, "Error: Macro %c not defined\n", *s);
 					exit(1);
 				}
 				for (num2=0; num2<macro_pat[num]->numcmd; num2++) {
@@ -798,6 +887,15 @@ int parse_pattern_trksub(const char *s, pmmusic_pattern *pattern)
 			Pprintf(3, "Info: Pulse-width %i (%i%%)\n", num, num * 100 / 255);
 			musicsh.cur.pulse = num;
 			break;
+		case '\\': // Pulse-width in percentage
+			num = musicsh.cur.pulse;
+			s = readmus_num(s, &num, 2);
+			num = num * 255 / 100;
+			if (num < 0) num = 0;
+			if (num > 255) num = 255;
+			Pprintf(3, "Info: Pulse-width %i (%i%%)\n", num, num * 100 / 255);
+			musicsh.cur.pulse = num;
+			break;
 		case 'v': // Volume
 			num = musicsh.cur.volume;
 			if (musicsh.vollevel) {
@@ -833,22 +931,22 @@ int parse_pattern_trksub(const char *s, pmmusic_pattern *pattern)
 			num = 0;
 			s = readmus_num(s, &num, 2);
 			if (s[1] != ':') {
-				Pprintf(0, "Error: Missing ':' in write to RAM\n");
+				Pprintf(-1, "Error: Missing ':' in write to RAM\n");
 				exit(1);
 			}
 			s++;
 			num2 = 0;
 			s = readmus_num(s, &num2, 2);
 			if ((num < 0) || (num > 255)) {
-				Pprintf(0, "Error: Write to RAM address out of range\n");
+				Pprintf(-1, "Error: Write to RAM address out of range\n");
 				exit(1);
 			}
 			if ((num2 < 0) || (num2 > 255)) {
-				Pprintf(0, "Error: Write to RAM address out of range\n");
+				Pprintf(-1, "Error: Write to RAM address out of range\n");
 				exit(1);
 			}
 			if (musicsh.cur.ramaddr != -1) {
-				Pprintf(0, "Error: Can only define one RAM write per row\n");
+				Pprintf(-1, "Error: Can only define one RAM write per row\n");
 				exit(1);
 			}
 			Pprintf(3, "Info: Write RAM[$%02X]=$%02X\n", num & 255, num2 & 255);
@@ -856,12 +954,21 @@ int parse_pattern_trksub(const char *s, pmmusic_pattern *pattern)
 			musicsh.cur.ramdata = num2;
 			break;
 		case 'q': // Quantize
-			num = musicsh.cur.quantize;
-			s = readmus_num(s, &num, 2);
-			if (num < 0) num = 0;
-			if (num > 64) num = 64;
-			Pprintf(3, "Info: Quantize %i (%i%%)\n", num, num * 100 / 64);
-			musicsh.cur.quantize = num;
+			if (!musicsh.shortq) {
+				num = musicsh.cur.quantize;
+				s = readmus_num(s, &num, 2);
+				if (num < 0) num = 0;
+				if (num > 64) num = 64;
+				Pprintf(3, "Info: Quantize %i (%i%%)\n", num, num * 100 / 64);
+				musicsh.cur.quantize = num;
+			} else {
+				num = (musicsh.cur.quantize / 7) - 1;
+				s = readmus_num(s, &num, 2);
+				if (num < 0) num = 0;
+				if (num > 8) num = 8;
+				musicsh.cur.quantize = (num + 1) * 7;
+				Pprintf(3, "Info: Quantize %i (%i%%)\n", num, musicsh.cur.quantize * 100 / 64);
+			}
 			break;
 		case 's': // Sustain
 			num = musicsh.cur.sustain;
@@ -884,33 +991,45 @@ int parse_pattern_trksub(const char *s, pmmusic_pattern *pattern)
 					break;
 				case 'd': // Disable
 					Pprintf(3, "Info: Effect type = Disabled\n");
-					musicsh.cur.efftype = 0;
+					musicsh.cur.efftype = EFFECT_DISABLED;
 					break;
 				case 'a': // Arpeggio
 					num = 0;
 					s = readmus_num(s, &num, 2);
 					musicsh.cur.note2 = num;
 					if (s[1] != ':') {
-						Pprintf(0, "Error: Missing ':' in write to RAM\n");
+						Pprintf(-1, "Error: Missing ':' in write to RAM\n");
 						exit(1);
 					}
 					s++;
 					num2 = 0;
 					s = readmus_num(s, &num2, 2);
 					musicsh.cur.note3 = num2;
-					musicsh.cur.efftype = 1;
+					musicsh.cur.efftype = EFFECT_ARPEGGIO;
 					Pprintf(3, "Info: Effect type = Arpeggio (Notes=%i,%i)\n", musicsh.cur.note2, musicsh.cur.note3);
 					break;
 				case 'p': // Portamento
 					num = 0;
 					s = readmus_num(s, &num, 2);
 					musicsh.cur.note2 = num;
-					musicsh.cur.efftype = 2;
+					musicsh.cur.efftype = EFFECT_PORTAMENTO;
 					Pprintf(3, "Info: Effect type = Portamento (Note=%i)\n", musicsh.cur.note2);
+					break;
+				case 'r': // Random between
+					num = 0;
+					s = readmus_num(s, &num, 2);
+					musicsh.cur.note2 = num;
+					musicsh.cur.efftype = EFFECT_RANDOM;
+					Pprintf(3, "Info: Effect type = Random Between (Note=%i)\n", musicsh.cur.note2);
+					break;
+				case 's': // Random seed
+					num = 1;
+					s = readmus_num(s, &num, 8);
+					srand (num);
+					Pprintf(3, "Info: Effect type = Random Seed (Seed=%i)\n", musicsh.cur.note2);
 					break;
 				default: // Invalid
 					Pprintf(0, "Warning: Unknown character '%c' in effect\n", *s);
-					exit(1);
 					break;
 			}
 			break;
@@ -944,14 +1063,14 @@ int parse_pattern_trk(const char *s, int sfx, pmmusic_pattern *pattern)
 	while (*txt != 0) {
 		if (*txt == '{') {
 			if (p_brace) {
-				Pprintf(0, "Error: Open brace already declared\n");
+				Pprintf(-1, "Error: Open brace already declared\n");
 				exit(1);
 			}
 			p_brace++;
 			*txt = ' ';
 		} else if (*txt == '}') {
 			if (!p_brace) {
-				Pprintf(0, "Error: Closing brace without open\n");
+				Pprintf(-1, "Error: Closing brace without open\n");
 				exit(1);
 			}
 			p_brace--;
@@ -965,7 +1084,7 @@ int parse_pattern_trk(const char *s, int sfx, pmmusic_pattern *pattern)
 	txt = TrimStr(tmp);
 	if ((txt[0] == 0) || (txt[0] == ';')) return p_brace;
 	if (!SeparateAtChars(txt, " \t", &directive, &parameter)) {
-		Pprintf(0, "Error: Malformed track directive\n");
+		Pprintf(-1, "Error: Malformed track directive\n");
 		exit(1);
 	}
 	if (!strcasecmp(directive, "ROW")) {
@@ -978,7 +1097,7 @@ int parse_pattern_trk(const char *s, int sfx, pmmusic_pattern *pattern)
 		pmmusic_addCMD(pattern, &cmd, -1);
 		p_dloop++;
 		if (p_dloop == 3) {
-			Pprintf(0, "Error: Number of loops exceeded\n");
+			Pprintf(-1, "Error: Number of loops exceeded\n");
 			exit(1);
 		}
 		return p_brace;
@@ -987,7 +1106,7 @@ int parse_pattern_trk(const char *s, int sfx, pmmusic_pattern *pattern)
 	} else if (!strcasecmp(directive, "MACRO")) {
 		directivenum = 2;
 	} else {
-		Pprintf(0, "Error: Invalid track directive '%s'\n", directive);
+		Pprintf(-1, "Error: Invalid track directive '%s'\n", directive);
 		exit(1);
 	}
 
@@ -1013,7 +1132,7 @@ int parse_pattern_trk(const char *s, int sfx, pmmusic_pattern *pattern)
 						if (p_dloop) {
 							p_dloop--;
 							if (num <= 0) {
-								Pprintf(0, "Error: Number of loops need to be >= 1\n");
+								Pprintf(-1, "Error: Number of loops need to be >= 1\n");
 								exit(1);
 							}
 							Pprintf(3, "Info: Ending loop %i (num=%i)\n", p_dloop, num);
@@ -1023,7 +1142,7 @@ int parse_pattern_trk(const char *s, int sfx, pmmusic_pattern *pattern)
 							cmd.loop_num = num - 1;
 							pmmusic_addCMD(pattern, &cmd, -1);
 						} else {
-							Pprintf(0, "Error: Closing bracket without open\n");
+							Pprintf(-1, "Error: Closing bracket without open\n");
 							exit(1);
 						}
 					}
@@ -1034,7 +1153,7 @@ int parse_pattern_trk(const char *s, int sfx, pmmusic_pattern *pattern)
 						num = *stxt - 'A';
 						if ((num < 0) || (num > 25)) break;
 						if (!macro_pat[num]) {
-							Pprintf(0, "Error: Macro %c not defined\n", *stxt);
+							Pprintf(-1, "Error: Macro %c not defined\n", *stxt);
 							exit(1);
 						}
 						for (num2=0; num2<macro_pat[num]->numcmd; num2++) {
@@ -1075,14 +1194,14 @@ int parse_bgm(const char *cmd, pmmusic_bgm *bgm)
 	while (*txt != 0) {
 		if (*txt == '{') {
 			if (p_brace) {
-				Pprintf(0, "Error: Open brace already declared\n");
+				Pprintf(-1, "Error: Open brace already declared\n");
 				exit(1);
 			}
 			p_brace++;
 			*txt = ' ';
 		} else if (*txt == '}') {
 			if (!p_brace) {
-				Pprintf(0, "Error: Closing brace without open\n");
+				Pprintf(-1, "Error: Closing brace without open\n");
 				exit(1);
 			}
 			p_brace--;
@@ -1102,11 +1221,17 @@ int parse_bgm(const char *cmd, pmmusic_bgm *bgm)
 			*txt = 0;
 			if (strlen(stxt)) {
 				if (!strcmp(stxt, "|")) {
+					if (p_bpatloop != -1) {
+						Pprintf(-1, "Error: Loop mark already defined\n");
+						exit(1);
+					}
 					p_bpatloop = p_bpat;
+					Pprintf(3, "Loop mark\n", txt);
 				} else {
+					Pprintf(3, "Pattern %s\n", stxt);
 					pat = pmmusic_getPAT(musiclist, stxt, NULL);
 					if (!pat) {
-						Pprintf(0, "Error: Pattern '%s' doesn't exist\n", stxt);
+						Pprintf(-1, "Error: Pattern '%s' doesn't exist\n", stxt);
 						exit(1);
 					}
 					pmmusic_addSEQ(bgm, pat, -1);
@@ -1144,27 +1269,26 @@ int convertmus_file(const char *musfile)
 	nextpatcmd.flags = PMMUSIC_FLAG_PATTERN;
 	nextpatcmd.pattern = 1;
 
-	if (p_recursive++) {
-		Pprintf(0, "Error: Recursive include overflow\n");
+	if (p_recursive++ >= 2) {
+		Pprintf(-1, "Error: Recursive include overflow\n");
 		exit(1);
 	}
 
 	fi = fopen(musfile, "r");
 	if (!fi) {
-		Pprintf(0, "Error: Couldn't open file\n");
+		Pprintf(-1, "Error: Couldn't open file\n");
 		exit(1);
 	}
-
 	strcpy(p_file, musfile);
-	p_line = 0;
-	p_comment = 0;
 
 	// 1st Pass
+	p_line = 0;
+	p_comment = 0;
 	fseek(fi, 0, SEEK_SET);
 	while ((txt = readmus_line(fi, tmp, 1024)) != NULL) {
 		// Separate directive from parameter
 		RemoveComments(txt);
-		SeparateAtChars(txt, " \t", &directive, &parameter);
+		if (!SeparateAtChars(txt, " \t", &directive, &parameter)) continue;
 		directive = TrimStr(directive);
 		parameter = TrimStr(parameter);
 
@@ -1181,30 +1305,39 @@ int convertmus_file(const char *musfile)
 			if (!strcasecmp(parameter, "ASM")) confs.format = FILE_ECODE_ASM;
 			else if (!strcasecmp(parameter, "C")) confs.format = FILE_ECODE_C;
 			else {
-				Pprintf(0, "Error: Invalid output format '%s'\n", parameter);
+				Pprintf(-1, "Error: Invalid output format '%s'\n", parameter);
 				exit(1);
 			}
+		} else if (!strcasecmp(directive, "OUTFILE")) {
+			parameter = TrimStr(parameter);
+			strcpy(confs.out_f, parameter);
 		} else if (!strcasecmp(directive, "VARHEADER")) {
 			parameter = TrimStr(parameter);
 			strcpy(confs.mus_v, parameter);
 		} else if (!strcasecmp(directive, "OUTHEADER")) {
 			parameter = TrimStr(parameter);
 			strcpy(confs.outh_f, parameter);
-		} else if (!strcasecmp(directive, "OUTFILE")) {
+		} else if (!strcasecmp(directive, "OUTLIST")) {
 			parameter = TrimStr(parameter);
-			strcpy(confs.out_f, parameter);
+			strcpy(confs.outl_f, parameter);
+		} else if (!strcasecmp(directive, "VARSFX")) {
+			parameter = TrimStr(parameter);
+			strcpy(confs.sfx_v, parameter);
+		} else if (!strcasecmp(directive, "VARBGM")) {
+			parameter = TrimStr(parameter);
+			strcpy(confs.bgm_v, parameter);
 		} else if (!strcasecmp(directive, "INCLUDE")) {
 			// Include file
 			strcpy(tp_file, p_file);
 			if (!convertmus_file(parameter)) {
-				Pprintf(0, "Error: Invalid file '%s'\n", parameter);
+				Pprintf(-1, "Error: Invalid file '%s'\n", parameter);
 				exit(1);
 			}
 		} else if (!strcasecmp(directive, "MTIME") || !strcasecmp(directive, "MASTERTIME")) {
 			// Change master time
 			value = atoi_Ex(parameter, -1);
 			if ((value <= 0) || (value > 65535)) {
-				Pprintf(0, "Error: Invalid master time value\n", parameter);
+				Pprintf(-1, "Error: Invalid master time value\n", parameter);
 				exit(1);
 			}
 			if (musicsh.mastertime_set && (value != musicsh.mastertime_val)) {
@@ -1217,21 +1350,21 @@ int convertmus_file(const char *musfile)
 			// Change master time based of BPM
 			fvalue = atof_Ex(parameter, -1.0f);
 			if (fvalue <= 0.0f) {
-				Pprintf(0, "Error: Invalid BPM value\n");
+				Pprintf(-1, "Error: Invalid BPM value\n");
 				exit(1);
 			}
 			if (!SeparateAtChars(parameter, ",", NULL, &parameter)) {
-				Pprintf(0, "Error: Missing wait value\n", parameter);
+				Pprintf(-1, "Error: Missing wait value\n", parameter);
 				exit(1);
 			}
 			value = atoi_Ex(parameter, -1);
 			if ((value < 0) || (value > 255)) {
-				Pprintf(0, "Error: Invalid wait value\n");
+				Pprintf(-1, "Error: Invalid wait value\n");
 				exit(1);
 			}
 			value = (int)(3905.25f / (fvalue / 960.0f * (float)value)) - 1;
 			if (value > 65535) {
-				Pprintf(0, "Error: Master time value too high\n");
+				Pprintf(-1, "Error: Master time value too high\n");
 				exit(1);
 			}
 			if (musicsh.mastertime_set && (value != musicsh.mastertime_val)) {
@@ -1251,21 +1384,57 @@ int convertmus_file(const char *musfile)
 			} else if (!strcasecmp(parameter, "16")) {
 				musicsh.vollevel = 1;
 			} else {
-				Pprintf(0, "Error: Invalid VOLLVL value\n");
+				Pprintf(-1, "Error: Invalid VOLLVL value\n");
+				exit(1);
+			}
+		} else if (!strcasecmp(directive, "OCTREV") || !strcasecmp(directive, "OCTAVEREV")) {
+			// Setup octave reverse
+			if (!strcasecmp(parameter, "no")) {
+				musicsh.octrev = 0;
+			} else if (!strcasecmp(parameter, "yes")) {
+				musicsh.octrev = 1;
+			} else if (!strcasecmp(parameter, "false")) {
+				musicsh.octrev = 0;
+			} else if (!strcasecmp(parameter, "true")) {
+				musicsh.octrev = 1;
+			} else if (!strcasecmp(parameter, "0")) {
+				musicsh.octrev = 0;
+			} else if (!strcasecmp(parameter, "1")) {
+				musicsh.octrev = 1;
+			} else {
+				Pprintf(-1, "Error: Invalid OCTREV value\n");
+				exit(1);
+			}
+		} else if (!strcasecmp(directive, "SHORTQ") || !strcasecmp(directive, "SHORTQUANTIZE")) {
+			// Setup octave reverse
+			if (!strcasecmp(parameter, "no")) {
+				musicsh.shortq = 0;
+			} else if (!strcasecmp(parameter, "yes")) {
+				musicsh.shortq = 1;
+			} else if (!strcasecmp(parameter, "false")) {
+				musicsh.shortq = 0;
+			} else if (!strcasecmp(parameter, "true")) {
+				musicsh.shortq = 1;
+			} else if (!strcasecmp(parameter, "0")) {
+				musicsh.shortq = 0;
+			} else if (!strcasecmp(parameter, "1")) {
+				musicsh.shortq = 1;
+			} else {
+				Pprintf(-1, "Error: Invalid SHORTQ value\n");
 				exit(1);
 			}
 		} else if (!strcasecmp(directive, "MACRO")) {
 			// Add or change macro
 			if (!SeparateAtChars(parameter, " \t", &varname, &parameter)) {
-				Pprintf(0, "Error: Malformed directive\n");
+				Pprintf(-1, "Error: Malformed directive\n");
 				exit(1);
 			}
 			if (strlen(varname) != 1) {
-				Pprintf(0, "Error: Macro must be 1 character\n");
+				Pprintf(-1, "Error: Macro must be 1 character\n");
 				exit(1);
 			}
 			if ((varname[0] < 'A') && (varname[0] > 'Z')) {
-				Pprintf(0, "Error: Macro must be a uppercase character\n");
+				Pprintf(-1, "Error: Macro must be a uppercase character\n");
 				exit(1);
 			}
 			pat = pmmusic_newpattern(varname, 1);
@@ -1284,15 +1453,15 @@ int convertmus_file(const char *musfile)
 		} else if (!strcasecmp(directive, "MACRO_T") || !strcasecmp(directive, "MACRO_TRACK")) {
 			// Add or change macro
 			if (!SeparateAtChars(parameter, " \t", &varname, &parameter)) {
-				Pprintf(0, "Error: Malformed directive\n");
+				Pprintf(-1, "Error: Malformed directive\n");
 				exit(1);
 			}
 			if (strlen(varname) != 1) {
-				Pprintf(0, "Error: Macro must be 1 character\n");
+				Pprintf(-1, "Error: Macro must be 1 character\n");
 				exit(1);
 			}
 			if ((varname[0] < 'A') && (varname[0] > 'Z')) {
-				Pprintf(0, "Error: Macro must be a uppercase character\n");
+				Pprintf(-1, "Error: Macro must be a uppercase character\n");
 				exit(1);
 			}
 			pat = pmmusic_newpattern(varname, 1);
@@ -1311,15 +1480,15 @@ int convertmus_file(const char *musfile)
 		} else if (!strcasecmp(directive, "PAT") || !strcasecmp(directive, "PATTERN")) {
 			// Define pattern
 			if (!SeparateAtChars(parameter, " \t", &varname, &parameter)) {
-				Pprintf(0, "Error: Malformed directive\n");
+				Pprintf(-1, "Error: Malformed directive\n");
 				exit(1);
 			}
 			if (!strlen(varname)) {
-				Pprintf(0, "Error: Pattern varname cannot be empty\n");
+				Pprintf(-1, "Error: Pattern varname cannot be empty\n");
 				exit(1);
 			}
 			if (pmmusic_existVAR(musiclist, varname, NULL, NULL)) {
-				Pprintf(0, "Error: Variable '%s' already defined\n", varname);
+				Pprintf(-1, "Error: Variable '%s' already defined\n", varname);
 				exit(1);
 			}
 			pat = pmmusic_newPAT(musiclist, varname, 1);
@@ -1335,15 +1504,15 @@ int convertmus_file(const char *musfile)
 			   !strcasecmp(directive, "PAT_TRACK") || !strcasecmp(directive, "PATTERN_TRACK")) {
 			// Define pattern
 			if (!SeparateAtChars(parameter, " \t", &varname, &parameter)) {
-				Pprintf(0, "Error: Malformed directive\n");
+				Pprintf(-1, "Error: Malformed directive\n");
 				exit(1);
 			}
 			if (!strlen(varname)) {
-				Pprintf(0, "Error: Pattern varname cannot be empty\n");
+				Pprintf(-1, "Error: Pattern varname cannot be empty\n");
 				exit(1);
 			}
 			if (pmmusic_existVAR(musiclist, varname, NULL, NULL)) {
-				Pprintf(0, "Error: Variable '%s' already defined\n", varname);
+				Pprintf(-1, "Error: Variable '%s' already defined\n", varname);
 				exit(1);
 			}
 			pat = pmmusic_newPAT(musiclist, varname, 1);
@@ -1358,15 +1527,15 @@ int convertmus_file(const char *musfile)
 		} else if (!strcasecmp(directive, "SFX")) {
 			// Define SFX
 			if (!SeparateAtChars(parameter, " \t", &varname, &parameter)) {
-				Pprintf(0, "Error: Malformed directive\n");
+				Pprintf(-1, "Error: Malformed directive\n");
 				exit(1);
 			}
 			if (!strlen(varname)) {
-				Pprintf(0, "Error: SFX varname cannot be empty\n");
+				Pprintf(-1, "Error: SFX varname cannot be empty\n");
 				exit(1);
 			}
 			if (pmmusic_existVAR(musiclist, varname, NULL, NULL)) {
-				Pprintf(0, "Error: Variable '%s' already defined\n", varname);
+				Pprintf(-1, "Error: Variable '%s' already defined\n", varname);
 				exit(1);
 			}
 			pat = pmmusic_newSFX(musiclist, varname, 1);
@@ -1381,15 +1550,15 @@ int convertmus_file(const char *musfile)
 		} else if (!strcasecmp(directive, "SFX_T") || !strcasecmp(directive, "SFX_TRACK")) {
 			// Define SFX
 			if (!SeparateAtChars(parameter, " \t", &varname, &parameter)) {
-				Pprintf(0, "Error: Malformed directive\n");
+				Pprintf(-1, "Error: Malformed directive\n");
 				exit(1);
 			}
 			if (!strlen(varname)) {
-				Pprintf(0, "Error: SFX varname cannot be empty\n");
+				Pprintf(-1, "Error: SFX varname cannot be empty\n");
 				exit(1);
 			}
 			if (pmmusic_existVAR(musiclist, varname, NULL, NULL)) {
-				Pprintf(0, "Error: Variable '%s' already defined\n", varname);
+				Pprintf(-1, "Error: Variable '%s' already defined\n", varname);
 				exit(1);
 			}
 			pat = pmmusic_newSFX(musiclist, varname, 1);
@@ -1404,15 +1573,15 @@ int convertmus_file(const char *musfile)
 		} else if (!strcasecmp(directive, "BGM")) {
 			// Define BGM
 			if (!SeparateAtChars(parameter, " \t", &varname, &parameter)) {
-				Pprintf(0, "Error: Malformed directive\n");
+				Pprintf(-1, "Error: Malformed directive\n");
 				exit(1);
 			}
 			if (!strlen(varname)) {
-				Pprintf(0, "Error: BGM varname cannot be empty\n");
+				Pprintf(-1, "Error: BGM varname cannot be empty\n");
 				exit(1);
 			}
 			if (pmmusic_existVAR(musiclist, varname, NULL, NULL)) {
-				Pprintf(0, "Error: Variable '%s' already defined\n", varname);
+				Pprintf(-1, "Error: Variable '%s' already defined\n", varname);
 				exit(1);
 			}
 			txt = parameter;
@@ -1422,19 +1591,21 @@ int convertmus_file(const char *musfile)
 		} else {
 			// Empty of unknown directive
 			if (strlen(directive)) {
-				Pprintf(0, "Error: Unknown directive '%s'\n", directive);
+				Pprintf(-1, "Error: Unknown directive '%s'\n", directive);
 				exit(1);
 			}
 		}
 
 		// Cannot have open brace
 		if (p_brace) {
-			Pprintf(0, "Error: Opening brace without close\n");
+			Pprintf(-1, "Error: Opening brace without close\n");
 			exit(1);
 		}
 	}
 
 	// 2nd Pass
+	p_line = 0;
+	p_comment = 0;
 	fseek(fi, 0, SEEK_SET);
 	while ((txt = readmus_line(fi, tmp, 1024)) != NULL) {
 		// Separate directive from parameter
@@ -1446,11 +1617,11 @@ int convertmus_file(const char *musfile)
 			p_bpat = 0;
 			p_bpatloop = -1;
 			if (!SeparateAtChars(parameter, " \t", &varname, &parameter)) {
-				Pprintf(0, "Error: Malformed directive\n");
+				Pprintf(-1, "Error: Malformed directive\n");
 				exit(1);
 			}
 			if (pmmusic_existVAR(musiclist, varname, NULL, NULL)) {
-				Pprintf(0, "Error: Variable '%s' already defined\n", varname);
+				Pprintf(-1, "Error: Variable '%s' already defined\n", varname);
 				exit(1);
 			}
 			bgm = pmmusic_newBGM(musiclist, varname, 1);
@@ -1478,7 +1649,7 @@ int convertmus_file(const char *musfile)
 
 		// Cannot have open brace
 		if (p_brace) {
-			Pprintf(0, "Error: Opening brace without close\n");
+			Pprintf(-1, "Error: Opening brace without close\n");
 			exit(1);
 		}
 	}
@@ -1497,11 +1668,18 @@ void audio_fill(int16_t *stream, int len)
 	if (sdump) WriteS16A_ExportWAV(sdump, (int16_t *)stream, len>>1);
 }
 
+void sdump_close(void)
+{
+	if (sdump) Close_ExportWAV(sdump);
+	sdump = NULL;
+}
+
 int main(int argc, char **argv)
 {
 	pmmusic_bgm *tbgm;
 	pmmusic_sfx *tsfx;
 	int i, j, playdec, totalsiz;
+	char tmp[256];
 	FILE_ECODE *foptr;
 	FILE *fo;
 
@@ -1515,6 +1693,7 @@ int main(int argc, char **argv)
 		printf("  -i music.txt        Music input (required)\n");
 		printf("  -o music.asm        Output file\n");
 		printf("  -oh music.inc       Output file (header)\n");
+		printf("  -ol music_list.asm  Output file (sound list)\n");
 		printf("  -q                  Quiet\n");
 		printf("  -v                  Verbose\n");
 		printf("  -sv                 Super-verbose\n");
@@ -1539,8 +1718,8 @@ int main(int argc, char **argv)
 	musicsh.vollevel = 1;		// Volume level of MML
 	musicsh.def.wait = 24;		// Wait
 	musicsh.def.note = -1;		// Note
-	musicsh.def.note2 = -1;		// Note 2 (Portamento & Arpeggio)
-	musicsh.def.note3 = -1;		// Note 3 (Arpeggio)
+	musicsh.def.note2 = -1;		// Note 2 for effects
+	musicsh.def.note3 = -1;		// Note 3 for effects
 	musicsh.def.ramaddr = -1;	// RAM address
 	musicsh.def.ramdata = -1;	// RAM data
 	musicsh.def.length = 4;		// Length
@@ -1550,7 +1729,7 @@ int main(int argc, char **argv)
 	musicsh.def.quantize = 64;	// Quantize
 	musicsh.def.sustain = 64;	// Sustain
 	musicsh.def.arpptr = 0;		// Arpeggio pointer
-	musicsh.def.efftype = 0;	// Effect type (0=Disabled, 1=Arpeggio, 2=Portamento)
+	musicsh.def.efftype = 0;	// Effect type
 	musicsh.def.efftick = 1;	// Effect tick
 
 	// Convert file
@@ -1563,6 +1742,18 @@ int main(int argc, char **argv)
 		strcpy(confs.mus_v, GetFilename(confs.mus_f));
 		RemoveExtension(confs.mus_v);
 		FixSymbolID(confs.mus_v);
+	}
+	if (!strlen(confs.sfx_v)) {
+		strcpy(confs.sfx_v, GetFilename(confs.mus_f));
+		RemoveExtension(confs.sfx_v);
+		strcat(confs.sfx_v, STR_APPEND_SFX);
+		FixSymbolID(confs.sfx_v);
+	}
+	if (!strlen(confs.bgm_v)) {
+		strcpy(confs.bgm_v, GetFilename(confs.mus_f));
+		RemoveExtension(confs.bgm_v);
+		strcat(confs.bgm_v, STR_APPEND_BGM);
+		FixSymbolID(confs.bgm_v);
 	}
 
 	// Assemble raw commands
@@ -1612,18 +1803,22 @@ int main(int argc, char **argv)
 			if (strlen(musicsh.programmer)) Comment_ExportCode(foptr, "Programmer: %s", musicsh.programmer);
 			if (strlen(musicsh.description)) Comment_ExportCode(foptr, "Description: %s", musicsh.description);
 			Comment_ExportCode(foptr, "Mastertime: $%04X, (%i)", musicsh.mastertime_val, musicsh.mastertime_val);
+			PrintASM_ExportCode(foptr, "\n\t.align 2\n");
+			// Export patterns
 			Comment_ExportCode(foptr, "");
 			Comment_ExportCode(foptr, "%3i Pattern(s)", musiclist->numpattern);
 			Comment_ExportCode(foptr, "");
 			for (i=0; i<musiclist->numpattern; i++) {
 				WriteArray_ExportCode(foptr, FILE_ECODE_16BITS, musiclist->pattern[i]->varname, (void *)musiclist->pattern[i]->raw, musiclist->pattern[i]->numraw * 2);
 			}
+			// Export SFXs
 			Comment_ExportCode(foptr, "");
 			Comment_ExportCode(foptr, "%3i SFX", musiclist->numsfx);
 			Comment_ExportCode(foptr, "");
 			for (i=0; i<musiclist->numsfx; i++) {
 				WriteArray_ExportCode(foptr, FILE_ECODE_16BITS, musiclist->sfx[i]->varname, (void *)musiclist->sfx[i]->raw, musiclist->sfx[i]->numraw * 2);
 			}
+			// Export BGMs
 			Comment_ExportCode(foptr, "");
 			Comment_ExportCode(foptr, "%3i BGM", musiclist->numbgm);
 			Comment_ExportCode(foptr, "");
@@ -1632,6 +1827,7 @@ int main(int argc, char **argv)
 				for (j=0; j<musiclist->bgm[i]->numpattern; j++) BlockVarWrite_ExportCode(foptr, musiclist->bgm[i]->pattern[j]->varname);
 				BlockClose_ExportCode(foptr);
 			}
+
 			if (!confs.quiet) printf("Exported data '%s'\n", confs.out_f);
 		} else printf("Error: Couldn't write output to '%s'\n", confs.out_f);
 		Close_ExportCode(foptr);
@@ -1654,16 +1850,23 @@ int main(int argc, char **argv)
 				fprintf(fo, "\n; Mastertime: $%04X, (%i)\n", musicsh.mastertime_val, musicsh.mastertime_val);
 				fprintf(fo, ".set " STR_MTIME " %i\n", confs.mus_v, musicsh.mastertime_val);
 				fprintf(fo, "\n; %3i Pattern(s)\n", musiclist->numpattern);
+				fprintf(fo, ".set " STR_NUMPAT " %i\n", confs.mus_v, musiclist->numpattern);
 				for (i=0; i<musiclist->numpattern; i++) {
 					fprintf(fo, "; '%s'\n", musiclist->pattern[i]->varname);
 				}
 				fprintf(fo, "\n; %3i SFX\n", musiclist->numsfx);
+				fprintf(fo, ".set " STR_NUMSFX " %i\n", confs.mus_v, musiclist->numsfx);
 				for (i=0; i<musiclist->numsfx; i++) {
 					fprintf(fo, "; '%s'\n", musiclist->sfx[i]->varname);
+					for (j=strlen(musiclist->sfx[i]->varname); j>=0; j--) tmp[j] = toupper(musiclist->sfx[i]->varname[j]);
+					fprintf(fo, "\t.set %s %i\n", tmp, i);
 				}
 				fprintf(fo, "\n; %3i BGM\n", musiclist->numbgm);
+				fprintf(fo, ".set " STR_NUMBGM " %i\n", confs.mus_v, musiclist->numbgm);
 				for (i=0; i<musiclist->numbgm; i++) {
 					fprintf(fo, "; '%s'\n", musiclist->bgm[i]->varname);
+					for (j=strlen(musiclist->bgm[i]->varname); j>=0; j--) tmp[j] = toupper(musiclist->bgm[i]->varname[j]);
+					fprintf(fo, "\t.set %s %i\n", tmp, i);
 				}
 				fprintf(fo, "\n");
 			} else if (confs.format == FILE_ECODE_C) {
@@ -1679,21 +1882,82 @@ int main(int argc, char **argv)
 				fprintf(fo, "\n// Mastertime: $%04X, (%i)\n", musicsh.mastertime_val, musicsh.mastertime_val);
 				fprintf(fo, "#define " STR_MTIME " (%i)\n", confs.mus_v, musicsh.mastertime_val);
 				fprintf(fo, "\n// %3i Pattern(s)\n", musiclist->numpattern);
+				fprintf(fo, "#define " STR_NUMPAT " %i\n", confs.mus_v, musiclist->numpattern);
 				for (i=0; i<musiclist->numpattern; i++) {
 					fprintf(fo, "extern unsigned short %s[];\n", musiclist->pattern[i]->varname);
 				}
 				fprintf(fo, "\n// %3i SFX\n", musiclist->numsfx);
+				fprintf(fo, "#define " STR_NUMSFX " %i\n", confs.mus_v, musiclist->numsfx);
 				for (i=0; i<musiclist->numsfx; i++) {
+					for (j=strlen(musiclist->sfx[i]->varname); j>=0; j--) tmp[j] = toupper(musiclist->sfx[i]->varname[j]);
+					fprintf(fo, "#define %s %i\n", tmp, i);
 					fprintf(fo, "extern unsigned short %s[];\n", musiclist->sfx[i]->varname);
 				}
 				fprintf(fo, "\n// %3i BGM\n", musiclist->numbgm);
+				fprintf(fo, "#define " STR_NUMBGM " %i\n", confs.mus_v, musiclist->numbgm);
 				for (i=0; i<musiclist->numbgm; i++) {
+					for (j=strlen(musiclist->bgm[i]->varname); j>=0; j--) tmp[j] = toupper(musiclist->bgm[i]->varname[j]);
+					fprintf(fo, "#define %s %i\n", tmp, i);
 					fprintf(fo, "extern unsigned long %s[];\n", musiclist->bgm[i]->varname);
 				}
 				fprintf(fo, "\n");
 			}
 			if (!confs.quiet) printf("Exported header '%s'\n", confs.outh_f);
 		} else printf("Error: Couldn't write output to '%s'\n", confs.outh_f);
+		fclose(fo);
+	}
+
+	// Output sound list
+	if (strlen(confs.outl_f)) {
+		fo = fopen(confs.outl_f, "w");
+		if (fo) {
+			if (confs.format == FILE_ECODE_ASM) {
+				fprintf(fo, "; %s\n; Sound list file\n\n", EXPORT_STR);
+				if (strlen(musicsh.title)) fprintf(fo, "; Title: %s\n", musicsh.title);
+				if (strlen(musicsh.composer)) fprintf(fo, "; Composer: %s\n", musicsh.composer);
+				if (strlen(musicsh.programmer)) fprintf(fo, "; Programmer: %s\n", musicsh.programmer);
+				if (strlen(musicsh.description)) fprintf(fo, "; Description: %s\n", musicsh.description);
+				fprintf(fo, "\n; Mastertime: $%04X, (%i)\n", musicsh.mastertime_val, musicsh.mastertime_val);
+				fprintf(fo, "\n; %3i Pattern(s)\n", musiclist->numpattern);
+				// Export SFXs
+				fprintf(fo, "\n; %3i SFX\n", musiclist->numsfx);
+				fprintf(fo, "%s:\n", confs.sfx_v);
+				for (i=0; i<musiclist->numsfx; i++) {
+					fprintf(fo, "\t.dd %s\n", musiclist->sfx[i]->varname);
+				}
+				// Export BGMs
+				fprintf(fo, "\n; %3i BGM\n", musiclist->numbgm);
+				fprintf(fo, "%s:\n", confs.bgm_v);
+				for (i=0; i<musiclist->numbgm; i++) {
+					fprintf(fo, "\t.dd %s\n", musiclist->bgm[i]->varname);
+				}
+				fprintf(fo, "\n");
+			} else if (confs.format == FILE_ECODE_C) {
+				fprintf(fo, "// %s\n// Sound list file\n\n", EXPORT_STR);
+				if (strlen(musicsh.title)) fprintf(fo, "// Title: %s\n", musicsh.title);
+				if (strlen(musicsh.composer)) fprintf(fo, "// Composer: %s\n", musicsh.composer);
+				if (strlen(musicsh.programmer)) fprintf(fo, "// Programmer: %s\n", musicsh.programmer);
+				if (strlen(musicsh.description)) fprintf(fo, "// Description: %s\n", musicsh.description);
+				fprintf(fo, "\n// Mastertime: $%04X, (%i)\n", musicsh.mastertime_val, musicsh.mastertime_val);
+				fprintf(fo, "\n// %3i Pattern(s)\n", musiclist->numpattern);
+				// Export SFXs
+				fprintf(fo, "\n// %3i SFX\n", musiclist->numsfx);
+				fprintf(fo, "unsigned long %s[] = {\n", confs.sfx_v);
+				for (i=0; i<musiclist->numsfx; i++) {
+					fprintf(fo, "\t%s,\n", musiclist->sfx[i]->varname);
+				}
+				fprintf(fo, "};\n");
+				// Export BGMs
+				fprintf(fo, "\n// %3i BGM\n", musiclist->numbgm);
+				fprintf(fo, "unsigned long %s[] = {\n", confs.bgm_v);
+				for (i=0; i<musiclist->numbgm; i++) {
+					fprintf(fo, "\t%s,\n", musiclist->bgm[i]->varname);
+				}
+				fprintf(fo, "};\n");
+				fprintf(fo, "\n");
+			}
+			if (!confs.quiet) printf("Exported sound list '%s'\n", confs.outl_f);
+		} else printf("Error: Couldn't write output to '%s'\n", confs.outl_f);
 		fclose(fo);
 	}
 
@@ -1736,6 +2000,7 @@ int main(int argc, char **argv)
 				printf("Error: Opening sound export file\n");
 				return 1;
 			}
+			raw_handle_ctrlc(sdump_close);
 		}
 
 		// Initialize audio & play
@@ -1743,9 +2008,9 @@ int main(int argc, char **argv)
 		play_saudio();
 
 		// Play 
-		playdec = 18;
-		while ((!raw_input_check()) && playdec) {
-			if (pmmusic.aud_ena) playdec = 18;
+		playdec = 36;
+		while ((!raw_input_check()) && playdec && notbreak) {
+			if (pmmusic.aud_ena) playdec = 36;
 			else playdec--;
 
 			pmmusic_emulate(4000000/72);

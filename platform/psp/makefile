@@ -56,10 +56,10 @@ ASFLAGS = $(CFLAGS)
 
 LIBDIR =
 LDFLAGS =
-LIBS= -lpspgum -lpspgu -lpspaudiolib -lpspaudio -lpsppower -lm
+LIBS= -lpspgum -lpspgu -lpspaudiolib -lpspaudio -lpsppower -lpsprtc -lm
 
 EXTRA_TARGETS = EBOOT.PBP
-PSP_EBOOT_TITLE = PokeMini 0.5.4 PSP
+PSP_EBOOT_TITLE = PokeMini 0.60 PSP
 PSP_EBOOT_ICON = icon0.png
 
 PSPSDK=$(shell psp-config --pspsdk-path)
