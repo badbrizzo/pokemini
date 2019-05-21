@@ -9,7 +9,7 @@
   Homebrew-emulator for Pokémon-Mini!
 
   Latest version can be found in:
-  http://pokemini.sourceforge.net/
+  https://github.com/pokemon-mini/pokemini
 
   For hardware documentation, visit:
   http://wiki.sublab.net/index.php/Pokemon_Mini
@@ -191,7 +191,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   Questions and Bugs reports are welcome!
 
   PokeMini webpage:
-  https://sourceforge.net/projects/pokemini/
+  https://github.com/pokemon-mini/pokemini
 
   Pokemon-Mini Hardware:
   http://wiki.sublab.net/index.php/Pokemon_Mini

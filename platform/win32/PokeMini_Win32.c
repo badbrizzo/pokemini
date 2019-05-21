@@ -58,14 +58,14 @@ const char *AboutTxt = "PokeMini " PokeMini_Version " Win32"
 	"IRC EFNET!\n\n"
 	"Please check readme.txt\n\n"
 	"For latest version visit:\n"
-	"http://pokemini.sourceforge.net/\n\n"
+	"https://github.com/pokemon-mini/pokemini\n\n"
 	"Special thanks to:\n"
 	"Museum of Electronic Games & Art\n"
 	"http://m-e-g-a.org\n"
 	"MEGA supports preservation\n"
 	"projects of digital art & culture\n";
 
-const char *WebsiteTxt = "http://pokemini.sourceforge.net/";
+const char *WebsiteTxt = "https://github.com/pokemon-mini/pokemini";
 
 // Variables
 volatile int emumodeE = EMUMODE_STOP;	// Emulation thread
