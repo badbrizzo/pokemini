@@ -4,7 +4,7 @@
           | |     | | | |
           |_| OKE |_| |_| INI
           -------------------
-             Version  0.60
+             Version  0.61
 
   Homebrew-emulator for Pokémon-Mini!
 

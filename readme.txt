@@ -4,7 +4,7 @@
           | |     | | | |
           |_| OKE |_| |_| INI
           -------------------
-             Version  0.60
+             Version  0.61
 
   Homebrew-emulator for Pokémon-Mini!
 
@@ -50,6 +50,9 @@
     Read, Erase, Write, Banking and Manufacturer ID
 
   Type 2 - Lupin's 512KB Flash (AM29LV040B)
+    Read, Erase, Write, Banking and Manufacturer ID
+
+  Type 3 - Ditto Mini 2048KB Flash (SST39VF1681)
     Read, Erase, Write, Banking and Manufacturer ID
 
 > Command-Line:
@@ -124,6 +127,11 @@
   Note: Performance tests were based on 0.4.0 version
 
 > History:
+
+  -: 0.61 Changes :-
+  Added support for Ditto Mini flash cartridge
+  Fixed direct register access to use I register (index page)
+  Added support for Visual Studio 2019
 
   -: 0.60 Changes :-
   Changed version format to only 2 fields to avoid confusion
