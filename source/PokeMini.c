@@ -274,12 +274,6 @@ int PokeMini_NewMIN(uint32_t size)
 		PM_ROM_Alloc = 0;
 	}
 	PM_ROM_Mask = GetMultiple2Mask(size);
-#ifndef PERFORMANCE
-	// Use full address space with Ditto Mini flash cart
-	if (CommandLine.multicart == 3) {
-		PM_ROM_Mask = 0x1FFFFF;
-	}
-#endif
 	PM_ROM_Size = PM_ROM_Mask + 1;
 	PM_ROM = (uint8_t *)malloc(PM_ROM_Size);
 	if (!PM_ROM) {
@@ -362,12 +356,6 @@ int PokeMini_SetMINMem(uint8_t *mem, int size)
 {
 	if (PM_ROM_Alloc) { free(PM_ROM); PM_ROM = NULL; PM_ROM_Alloc = 0; }
 	PM_ROM_Mask = GetMultiple2Mask(size);
-#ifndef PERFORMANCE
-	// Use full address space with Ditto Mini flash cart
-	if (CommandLine.multicart == 3) {
-		PM_ROM_Mask = 0x1FFFFF;
-	}
-#endif
 	PM_ROM_Size = PM_ROM_Mask + 1;
 	PM_ROM = mem;
 	PM_ROM_Alloc = 0;

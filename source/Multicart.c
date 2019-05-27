@@ -31,6 +31,7 @@ int PM_MM_GetID = 0;		// Get ID on next read
 int PM_MM_Bypass = 0;		// Flash Bypass
 int PM_MM_Command = 0;		// 0 = None, 1 = Write, 2 = Erase
 uint32_t PM_MM_Offset = 0;	// ROM Offset in bytes
+uint32_t PM_MM_Ditto_Mask = 0x1FFFFF;
 
 // For misc information
 uint32_t PM_MM_LastErase_Start = 0;	// Last erased start
@@ -275,7 +276,7 @@ void Multicart_T2W(uint32_t addr, uint8_t data)
 // Flash command bytes written to Ditto are bit reversed. (ie; 0xC0 8'b1100_0000 = 8'b0000_0011)
 uint8_t Multicart_T3R(uint32_t addr)
 {
-	if (!PM_MM_GetID) return PM_ROM[(addr + PM_MM_Offset) & PM_ROM_Mask];
+	if (!PM_MM_GetID) return PM_ROM[(addr + PM_MM_Offset) & PM_MM_Ditto_Mask];
 	PM_MM_GetID = 0;
 	switch (addr >> 6) {
 	case 0: return 0xBF;	// Manufacturer ID
@@ -298,13 +299,16 @@ Values 0x80 - 0x83 are 512K segments, masking the low two bits to select bank
 	if (addr == 0x1FFFFF) { // bank switch
 	
 		if (data == 0) {
-		PM_MM_Offset = 0;
+			PM_MM_Offset = 0;
+			PM_MM_Ditto_Mask = 0x1FFFFF;
 		}
 		else if (data < 32) {
-		PM_MM_Offset = data * 0x10000; // 64kb
+			PM_MM_Offset = data * 0x10000; // 64kb
+			PM_MM_Ditto_Mask = 0xFFFF;
 		}
 		else if ((data >> 7) == 1) {
 			PM_MM_Offset = (data & 0x03) * 0x80000; // 512kb
+			PM_MM_Ditto_Mask = 0x7FFFF;
 		}
 	}
 	
@@ -320,8 +324,8 @@ Values 0x80 - 0x83 are 512K segments, masking the low two bits to select bank
 		}
 		else if (data == 0x0A) {
 			// sector erase
-			PM_MM_LastErase_Start = (addr >> 12) * 4096;
-			PM_MM_LastErase_End = (((addr >> 12) + 1) * 4096) - 1;
+			PM_MM_LastErase_Start = ((addr >> 12) * 4096) & PM_MM_Ditto_Mask;
+			PM_MM_LastErase_End = ((((addr >> 12) + 1) * 4096) - 1) & PM_MM_Ditto_Mask;
 			for (i = PM_MM_LastErase_Start; i <= PM_MM_LastErase_End; i++) PM_ROM[i] = 0xFF;
 			
 			PM_MM_Dirty = 1;
@@ -338,7 +342,7 @@ Values 0x80 - 0x83 are 512K segments, masking the low two bits to select bank
 		PM_MM_BusCycle = 0;
 		if (PM_MM_Command == 1) {
 			// Program (Clear bits)
-			PM_MM_LastProg = (addr + PM_MM_Offset) & PM_ROM_Mask;
+			PM_MM_LastProg = (addr + PM_MM_Offset) & PM_MM_Ditto_Mask;
 			PM_ROM[PM_MM_LastProg] &= data;
 			PM_MM_Dirty = 1;
 		}
@@ -397,6 +401,7 @@ void SetMulticart(int type)
 		PM_MM_Type = 3;
 		MulticartRead = Multicart_T3R;
 		MulticartWrite = Multicart_T3W;
+		PM_ROM_Mask = 0x1FFFFF;
 	}
 	else if (type == 2) {
 		PM_MM_Type = 2;
